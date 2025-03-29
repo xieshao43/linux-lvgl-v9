@@ -1,6 +1,6 @@
 # linux-lvgl-v9
 
-#Install steps:
+Install steps:
 
  mkdir build and cd build
  cmake ..
