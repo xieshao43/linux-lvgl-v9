@@ -12,8 +12,8 @@ Install steps:
 
 Update line:
 
-Install the lvgl 9.0 
-Add the self-design example
+Ported the lvgl 9.0 
+Added the self-design example
 Rechanged the lv_conf settings for the Core and st7789w framebuffer
 
 What it do?

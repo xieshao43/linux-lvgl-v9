@@ -164,7 +164,7 @@ static void create_ui(void) {
     
     // Storage arc - left side
     storage_ui->storage_arc = lv_arc_create(main_panel);
-    lv_obj_set_size(storage_ui->storage_arc, 80, 80);
+    lv_obj_set_size(storage_ui->storage_arc, 75, 75);
     lv_obj_align(storage_ui->storage_arc, LV_ALIGN_LEFT_MID, 10, 0);
     lv_arc_set_rotation(storage_ui->storage_arc, 270);
     lv_arc_set_bg_angles(storage_ui->storage_arc, 0, 360);
@@ -173,12 +173,12 @@ static void create_ui(void) {
     lv_obj_remove_style(storage_ui->storage_arc, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_MAIN);
     lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(color_accent1), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
     
     // Memory arc - right side
     storage_ui->memory_arc = lv_arc_create(main_panel);
-    lv_obj_set_size(storage_ui->memory_arc, 80, 80);
+    lv_obj_set_size(storage_ui->memory_arc, 75, 75);
     lv_obj_align(storage_ui->memory_arc, LV_ALIGN_RIGHT_MID, -10, 0);
     lv_arc_set_rotation(storage_ui->memory_arc, 270);
     lv_arc_set_bg_angles(storage_ui->memory_arc, 0, 360);
@@ -187,7 +187,7 @@ static void create_ui(void) {
     lv_obj_remove_style(storage_ui->memory_arc, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(storage_ui->memory_arc, 8, LV_PART_MAIN);
     lv_obj_set_style_arc_width(storage_ui->memory_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(color_accent2), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
     
     // Storage title
@@ -204,12 +204,12 @@ static void create_ui(void) {
     lv_label_set_text(storage_ui->percent_label, "0%");
     lv_obj_align_to(storage_ui->percent_label, storage_ui->storage_arc, LV_ALIGN_CENTER, 0, 0);
 
-    // Storage details
+    // Storage details - aligned with its arc
     storage_ui->info_label = lv_label_create(main_panel);
     lv_obj_set_style_text_font(storage_ui->info_label, font_small, 0);
     lv_obj_set_style_text_color(storage_ui->info_label, lv_color_hex(color_text_secondary), 0);
     lv_label_set_text(storage_ui->info_label, "0 / 0");
-    lv_obj_align_to(storage_ui->info_label, storage_ui->storage_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+    lv_obj_align_to(storage_ui->info_label, storage_ui->storage_arc, LV_ALIGN_OUT_BOTTOM_MID, -15, 0);
     
     // Memory title
     lv_obj_t *memory_title = lv_label_create(main_panel);
@@ -225,12 +225,12 @@ static void create_ui(void) {
     lv_label_set_text(storage_ui->memory_percent_label, "0%");
     lv_obj_align_to(storage_ui->memory_percent_label, storage_ui->memory_arc, LV_ALIGN_CENTER, 0, 0);
     
-    // Memory details
+    // Memory details - aligned with its arc
     storage_ui->memory_info_label = lv_label_create(main_panel);
     lv_obj_set_style_text_font(storage_ui->memory_info_label, font_small, 0);
     lv_obj_set_style_text_color(storage_ui->memory_info_label, lv_color_hex(color_text_secondary), 0);
     lv_label_set_text(storage_ui->memory_info_label, "0 / 0");
-    lv_obj_align_to(storage_ui->memory_info_label, storage_ui->memory_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+    lv_obj_align_to(storage_ui->memory_info_label, storage_ui->memory_arc, LV_ALIGN_OUT_BOTTOM_MID, -20, 0);
 }
 
 /**
