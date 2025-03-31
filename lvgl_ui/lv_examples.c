@@ -116,61 +116,66 @@ void storage_monitor_close(void) {
 /**
  * 创建UI元素
  */
+
 static void create_ui(void) {
     // 适配小屏幕的字体大小
     const lv_font_t *font_title = &lv_font_montserrat_16;
     const lv_font_t *font_normal = &lv_font_montserrat_14;
-    const lv_font_t *font_big = &lv_font_montserrat_22;
+    const lv_font_t *font_big = &lv_font_montserrat_20;
     
-    // 主容器
+    // 主容器 - 横屏布局
     storage_ui->main_cont = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(storage_ui->main_cont, 135, 240);
+    lv_obj_set_size(storage_ui->main_cont, 240, 135);  // 横屏尺寸
     lv_obj_set_pos(storage_ui->main_cont, 0, 0);
     lv_obj_set_style_bg_color(storage_ui->main_cont, lv_color_hex(COLOR_BG), 0);
     lv_obj_set_style_border_width(storage_ui->main_cont, 0, 0);
     lv_obj_set_style_pad_all(storage_ui->main_cont, 0, 0);
     
     // 标题
+    /*
     storage_ui->title_label = lv_label_create(storage_ui->main_cont);
     lv_obj_set_style_text_font(storage_ui->title_label, font_title, 0);
     lv_obj_set_style_text_color(storage_ui->title_label, lv_color_white(), 0);
     lv_label_set_text(storage_ui->title_label, "Storage Monitor");
-    lv_obj_align(storage_ui->title_label, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_align(storage_ui->title_label, LV_ALIGN_TOP_MID, 0, 5);
+    */
     
-    // 存储空间弧形进度条
+    // 存储空间弧形进度条 - 左侧
     storage_ui->storage_arc = lv_arc_create(storage_ui->main_cont);
-    lv_obj_set_size(storage_ui->storage_arc, 110, 110);
-    lv_obj_align(storage_ui->storage_arc, LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_set_size(storage_ui->storage_arc, 95, 95);  // 稍小一点以适应横屏
+    lv_obj_align(storage_ui->storage_arc, LV_ALIGN_LEFT_MID, 25, 8);  // 左侧
     lv_arc_set_rotation(storage_ui->storage_arc, 270);
     lv_arc_set_bg_angles(storage_ui->storage_arc, 0, 360);
     lv_arc_set_range(storage_ui->storage_arc, 0, 100);
     lv_arc_set_value(storage_ui->storage_arc, 0);
     lv_obj_remove_style(storage_ui->storage_arc, NULL, LV_PART_KNOB);
-    lv_obj_set_style_arc_width(storage_ui->storage_arc, 10, LV_PART_MAIN);
-    lv_obj_set_style_arc_width(storage_ui->storage_arc, 10, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(COLOR_PRIMARY), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(0x393E4B), LV_PART_MAIN);
     
-    // 百分比标签
+    // 百分比标签 - 在弧形进度条中心
     storage_ui->percent_label = lv_label_create(storage_ui->main_cont);
     lv_obj_set_style_text_font(storage_ui->percent_label, font_big, 0);
     lv_obj_set_style_text_color(storage_ui->percent_label, lv_color_white(), 0);
     lv_label_set_text(storage_ui->percent_label, "0%");
     lv_obj_align_to(storage_ui->percent_label, storage_ui->storage_arc, LV_ALIGN_CENTER, 0, 0);
     
+    // 信息区域 - 右侧
+    
     // 详细信息标签
     storage_ui->info_label = lv_label_create(storage_ui->main_cont);
     lv_obj_set_style_text_font(storage_ui->info_label, font_normal, 0);
     lv_obj_set_style_text_color(storage_ui->info_label, lv_color_white(), 0);
     lv_label_set_text(storage_ui->info_label, "0 KB / 0 KB");
-    lv_obj_align(storage_ui->info_label, LV_ALIGN_TOP_MID, 0, 160);
+    lv_obj_align(storage_ui->info_label, LV_ALIGN_RIGHT_MID, -60, -20);  // 右侧偏上
     
     // 路径标签
     storage_ui->path_label = lv_label_create(storage_ui->main_cont);
     lv_obj_set_style_text_font(storage_ui->path_label, font_normal, 0);
     lv_obj_set_style_text_color(storage_ui->path_label, lv_color_hex(0x888888), 0);
     lv_label_set_text_fmt(storage_ui->path_label, "Path: %s", storage_path);
-    lv_obj_align(storage_ui->path_label, LV_ALIGN_TOP_MID, 0, 185);
+    lv_obj_align(storage_ui->path_label, LV_ALIGN_RIGHT_MID, -60, 20);  // 右侧偏下
 }
 
 /**
