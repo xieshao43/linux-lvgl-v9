@@ -15,7 +15,7 @@ Update line:
 Install the lvgl 9.0 successfully
 
 
-Target:
+What it do?
 
 Add an self-design example that could builds and opperates in linux
 Optiminze the linux version lvgl performance and effective
