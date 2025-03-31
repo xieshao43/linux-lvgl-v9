@@ -1,24 +1,26 @@
-#ifndef LVGL9_UI_EXAMPLE_H
-#define LVGL9_UI_EXAMPLE_H
+#ifndef LV_EXAMPLES_H
+#define LV_EXAMPLES_H
 
-#include "lvgl/lvgl.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/**
- * 初始化并显示系统监控UI
- */
-void ui_example_init(void);
+/*********************
+ *      包含
+ *********************/
+#include "../lvgl/lvgl.h"
 
-/**
- * 关闭系统监控UI并清理资源
- */
-void ui_example_close(void);
+/*********************
+ *      函数声明
+ *********************/
+// 存储监控初始化函数
+void storage_monitor_init(const char *path);
 
-/**
- * 手动更新系统数据（可选）
- * @param mem_total 总内存(KB)
- * @param mem_used 已用内存(KB)
- * @param cpu_usage CPU使用率(0-100)
- */
-void ui_example_update_data(uint32_t mem_total, uint32_t mem_used, uint8_t cpu_usage);
+// 关闭存储监控
+void storage_monitor_close(void);
 
-#endif /* LVGL9_UI_EXAMPLE_H */
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif /* LV_EXAMPLES_H */
