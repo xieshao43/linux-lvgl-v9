@@ -30,6 +30,11 @@ typedef struct {
     lv_obj_t *info_label;      // 详细信息标签
     lv_obj_t *path_label;      // 路径标签
     lv_timer_t *update_timer;  // 更新定时器
+
+    // 新增内存监控相关成员
+    lv_obj_t *memory_arc;      // 内存半圆弧进度条
+    lv_obj_t *memory_percent_label; // 内存百分比标签
+    lv_obj_t *memory_info_label;    // 内存详细信息标签
 } storage_ui_t;
 
 /**********************
@@ -39,6 +44,10 @@ static storage_ui_t *storage_ui;
 static uint64_t total_space = 0;     // 总容量 (KB)
 static uint64_t used_space = 0;      // 已用容量 (KB)
 static char storage_path[64] = "/";  // 监测路径
+
+// 新增内存相关的静态变量
+static uint64_t total_memory = 0;    // 总内存 (KB)
+static uint64_t used_memory = 0;     // 已用内存 (KB)
 
 /**********************
  *  静态函数原型
@@ -116,7 +125,6 @@ void storage_monitor_close(void) {
 /**
  * 创建UI元素
  */
-
 static void create_ui(void) {
     // 适配小屏幕的字体大小
     const lv_font_t *font_title = &lv_font_montserrat_16;
@@ -143,7 +151,7 @@ static void create_ui(void) {
     // 存储空间弧形进度条 - 左侧
     storage_ui->storage_arc = lv_arc_create(storage_ui->main_cont);
     lv_obj_set_size(storage_ui->storage_arc, 95, 95);  // 稍小一点以适应横屏
-    lv_obj_align(storage_ui->storage_arc, LV_ALIGN_LEFT_MID, 25, 8);  // 左侧
+    lv_obj_align(storage_ui->storage_arc, LV_ALIGN_LEFT_MID, 20, 8);  // 左侧
     lv_arc_set_rotation(storage_ui->storage_arc, 270);
     lv_arc_set_bg_angles(storage_ui->storage_arc, 0, 360);
     lv_arc_set_range(storage_ui->storage_arc, 0, 100);
@@ -168,14 +176,35 @@ static void create_ui(void) {
     lv_obj_set_style_text_font(storage_ui->info_label, font_normal, 0);
     lv_obj_set_style_text_color(storage_ui->info_label, lv_color_white(), 0);
     lv_label_set_text(storage_ui->info_label, "0 KB / 0 KB");
-    lv_obj_align(storage_ui->info_label, LV_ALIGN_RIGHT_MID, -60, -20);  // 右侧偏上
-    
-    // 路径标签
-    storage_ui->path_label = lv_label_create(storage_ui->main_cont);
-    lv_obj_set_style_text_font(storage_ui->path_label, font_normal, 0);
-    lv_obj_set_style_text_color(storage_ui->path_label, lv_color_hex(0x888888), 0);
-    lv_label_set_text_fmt(storage_ui->path_label, "Path: %s", storage_path);
-    lv_obj_align(storage_ui->path_label, LV_ALIGN_RIGHT_MID, -60, 20);  // 右侧偏下
+    lv_obj_align(storage_ui->info_label, LV_ALIGN_RIGHT_MID, -10, -45);  // 右侧偏上
+
+    // 新增内存半圆弧进度条 - 向下开口
+    storage_ui->memory_arc = lv_arc_create(storage_ui->main_cont);
+    lv_obj_set_size(storage_ui->memory_arc, 70, 70);  // 半圆弧大小
+    lv_obj_align(storage_ui->memory_arc, LV_ALIGN_RIGHT_MID, -20, 20);  // 放置在空余位置
+    lv_arc_set_rotation(storage_ui->memory_arc, 180);  // 修改：旋转180度，使0度位置在底部
+    lv_arc_set_bg_angles(storage_ui->memory_arc, 0, 180);  // 保持0-180度的范围，但因为旋转了，会从左底到右底
+    lv_arc_set_range(storage_ui->memory_arc, 0, 100);
+    lv_arc_set_value(storage_ui->memory_arc, 0);
+    lv_obj_remove_style(storage_ui->memory_arc, NULL, LV_PART_KNOB);
+    lv_obj_set_style_arc_width(storage_ui->memory_arc, 8, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(storage_ui->memory_arc, 8, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(0x393E4B), LV_PART_MAIN);
+
+    // 内存百分比标签 - 在半圆弧中心
+    storage_ui->memory_percent_label = lv_label_create(storage_ui->main_cont);
+    lv_obj_set_style_text_font(storage_ui->memory_percent_label, font_big, 0);
+    lv_obj_set_style_text_color(storage_ui->memory_percent_label, lv_color_white(), 0);
+    lv_label_set_text(storage_ui->memory_percent_label, "0%");
+    lv_obj_align_to(storage_ui->memory_percent_label, storage_ui->memory_arc, LV_ALIGN_CENTER, 0, 0);
+
+    // 内存详细信息标签
+    storage_ui->memory_info_label = lv_label_create(storage_ui->main_cont);
+    lv_obj_set_style_text_font(storage_ui->memory_info_label, font_normal, 0);
+    lv_obj_set_style_text_color(storage_ui->memory_info_label, lv_color_white(), 0);
+    lv_label_set_text(storage_ui->memory_info_label, "0 KB / 0 KB");
+    lv_obj_align(storage_ui->memory_info_label, LV_ALIGN_RIGHT_MID, -20, -40);  // 放置在半圆弧下方
 }
 
 /**
@@ -184,23 +213,40 @@ static void create_ui(void) {
 static void update_ui_values(void) {
     if(storage_ui == NULL) return;
     
-    // 计算使用百分比
-    uint8_t percent = 0;
+    // 计算存储使用百分比
+    uint8_t storage_percent = 0;
     if(total_space > 0) {
-        percent = (uint8_t)((used_space * 100) / total_space);
+        storage_percent = (uint8_t)((used_space * 100) / total_space);
     }
     
-    // 设置弧形进度条
-    lv_arc_set_value(storage_ui->storage_arc, percent);
+    // 设置存储弧形进度条
+    lv_arc_set_value(storage_ui->storage_arc, storage_percent);
     
-    // 更新百分比标签
-    lv_label_set_text_fmt(storage_ui->percent_label, "%d%%", percent);
+    // 更新存储百分比标签
+    lv_label_set_text_fmt(storage_ui->percent_label, "%d%%", storage_percent);
     
-    // 更新详细信息标签
+    // 更新存储详细信息标签
     char used_buf[20], total_buf[20];
     lv_label_set_text_fmt(storage_ui->info_label, "%s / %s", 
                           get_size_str(used_space, used_buf, sizeof(used_buf)),
                           get_size_str(total_space, total_buf, sizeof(total_buf)));
+
+    // 计算内存使用百分比
+    uint8_t memory_percent = 0;
+    if(total_memory > 0) {
+        memory_percent = (uint8_t)((used_memory * 100) / total_memory);
+    }
+    
+    // 设置内存半圆弧进度条
+    lv_arc_set_value(storage_ui->memory_arc, memory_percent);
+    
+    // 更新内存百分比标签
+    lv_label_set_text_fmt(storage_ui->memory_percent_label, "%d%%", memory_percent);
+    
+    // 更新内存详细信息标签
+    lv_label_set_text_fmt(storage_ui->memory_info_label, "%s / %s", 
+                          get_size_str(used_memory, used_buf, sizeof(used_buf)),
+                          get_size_str(total_memory, total_buf, sizeof(total_buf)));
 }
 
 /**
@@ -260,6 +306,26 @@ static void read_storage_data(void) {
             used_space = total_space;
         }
     }
+
+    // 读取内存信息
+    FILE *meminfo = fopen("/proc/meminfo", "r");
+    if (meminfo) {
+        char line[256];
+        while (fgets(line, sizeof(line), meminfo)) {
+            if (strstr(line, "MemTotal:")) {
+                sscanf(line, "MemTotal: %llu kB", &total_memory);
+            } else if (strstr(line, "MemAvailable:")) {
+                uint64_t available_memory;
+                sscanf(line, "MemAvailable: %llu kB", &available_memory);
+                used_memory = total_memory - available_memory;
+            }
+        }
+        fclose(meminfo);
+    } else {
+        // 模拟内存数据
+        total_memory = 2048 * 1024;  // 2 GB
+        used_memory = 512 * 1024;    // 512 MB
+    }
 }
 
 /**
@@ -282,4 +348,4 @@ static const char *get_size_str(uint64_t size_kb, char *buf, int buf_size) {
     }
     
     return buf;
-}
+}    
