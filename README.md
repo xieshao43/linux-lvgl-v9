@@ -1,4 +1,4 @@
-# linux-lvgl-v9
+# linux_lvgl_V9.0
 
 Install steps:
 
@@ -12,8 +12,9 @@ Install steps:
 
 Update line:
 
-Install the lvgl 9.0 successfully
-
+Install the lvgl 9.0 
+Add the self-design example
+Rechanged the lv_conf settings for the Core and st7789w framebuffer
 
 What it do?
 

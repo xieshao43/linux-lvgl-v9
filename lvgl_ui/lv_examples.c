@@ -14,10 +14,10 @@
 /*********************
  *      定义
  *********************/
-#define UPDATE_INTERVAL 3000   // 更新间隔，毫秒
-#define COLOR_PRIMARY   0x3288fa  // 主色调
-#define COLOR_BG        0x1B1E29  // 背景色
-#define COLOR_SECONDARY 0x42A5F5  // 次要色调
+#define UPDATE_INTERVAL 500   // 更新间隔，毫秒
+#define COLOR_PRIMARY   0x3D8361  // 墨绿色
+#define COLOR_BG        0x1E2A2A  // 深灰绿色
+#define COLOR_SECONDARY 0xD8B08C  // 高级金棕色
 
 /**********************
  *      类型定义
@@ -126,32 +126,46 @@ void storage_monitor_close(void) {
  * 创建UI元素
  */
 static void create_ui(void) {
-    // 适配小屏幕的字体大小
-    const lv_font_t *font_title = &lv_font_montserrat_16;
-    const lv_font_t *font_normal = &lv_font_montserrat_14;
-    const lv_font_t *font_big = &lv_font_montserrat_20;
+    // Font definitions
+    const lv_font_t *font_big = &lv_font_montserrat_22;
+    const lv_font_t *font_small = &lv_font_montserrat_12;
     
-    // 主容器 - 横屏布局
+    // Elegant color scheme
+    uint32_t color_bg = 0x2D3436;        // Deep slate background
+    uint32_t color_panel = 0x34495E;     // Rich navy panel
+    uint32_t color_accent1 = 0x9B59B6;   // Elegant purple
+    uint32_t color_accent2 = 0x3498DB;   // Sophisticated blue
+    uint32_t color_text = 0xECF0F1;      // Soft white
+    uint32_t color_text_secondary = 0xBDC3C7; // Silver gray
+    
+    // Set main background
+    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(color_bg), 0);
+    
+    // Main container - full screen
     storage_ui->main_cont = lv_obj_create(lv_screen_active());
-    lv_obj_set_size(storage_ui->main_cont, 240, 135);  // 横屏尺寸
+    lv_obj_set_size(storage_ui->main_cont, 240, 135);
     lv_obj_set_pos(storage_ui->main_cont, 0, 0);
-    lv_obj_set_style_bg_color(storage_ui->main_cont, lv_color_hex(COLOR_BG), 0);
+    lv_obj_set_style_bg_color(storage_ui->main_cont, lv_color_hex(color_bg), 0);
     lv_obj_set_style_border_width(storage_ui->main_cont, 0, 0);
-    lv_obj_set_style_pad_all(storage_ui->main_cont, 0, 0);
+    lv_obj_set_style_pad_all(storage_ui->main_cont, 10, 0);
+    lv_obj_set_style_radius(storage_ui->main_cont, 0, 0);
     
-    // 标题
-    /*
-    storage_ui->title_label = lv_label_create(storage_ui->main_cont);
-    lv_obj_set_style_text_font(storage_ui->title_label, font_title, 0);
-    lv_obj_set_style_text_color(storage_ui->title_label, lv_color_white(), 0);
-    lv_label_set_text(storage_ui->title_label, "Storage Monitor");
-    lv_obj_align(storage_ui->title_label, LV_ALIGN_TOP_MID, 0, 5);
-    */
+    // Single unified panel
+    lv_obj_t *main_panel = lv_obj_create(storage_ui->main_cont);
+    lv_obj_set_size(main_panel, 235, 130);
+    lv_obj_align(main_panel, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(main_panel, lv_color_hex(color_panel), 0);
+    lv_obj_set_style_border_width(main_panel, 0, 0);
+    lv_obj_set_style_radius(main_panel, 12, 0);
+    lv_obj_set_style_pad_all(main_panel, 10, 0);
+    lv_obj_set_style_shadow_width(main_panel, 15, 0);
+    lv_obj_set_style_shadow_color(main_panel, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_shadow_opa(main_panel, LV_OPA_30, 0);
     
-    // 存储空间弧形进度条 - 左侧
-    storage_ui->storage_arc = lv_arc_create(storage_ui->main_cont);
-    lv_obj_set_size(storage_ui->storage_arc, 95, 95);  // 稍小一点以适应横屏
-    lv_obj_align(storage_ui->storage_arc, LV_ALIGN_LEFT_MID, 20, 8);  // 左侧
+    // Storage arc - left side
+    storage_ui->storage_arc = lv_arc_create(main_panel);
+    lv_obj_set_size(storage_ui->storage_arc, 80, 80);
+    lv_obj_align(storage_ui->storage_arc, LV_ALIGN_LEFT_MID, 10, 0);
     lv_arc_set_rotation(storage_ui->storage_arc, 270);
     lv_arc_set_bg_angles(storage_ui->storage_arc, 0, 360);
     lv_arc_set_range(storage_ui->storage_arc, 0, 100);
@@ -159,52 +173,64 @@ static void create_ui(void) {
     lv_obj_remove_style(storage_ui->storage_arc, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_MAIN);
     lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(COLOR_PRIMARY), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(0x393E4B), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(color_accent1), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
     
-    // 百分比标签 - 在弧形进度条中心
-    storage_ui->percent_label = lv_label_create(storage_ui->main_cont);
-    lv_obj_set_style_text_font(storage_ui->percent_label, font_big, 0);
-    lv_obj_set_style_text_color(storage_ui->percent_label, lv_color_white(), 0);
-    lv_label_set_text(storage_ui->percent_label, "0%");
-    lv_obj_align_to(storage_ui->percent_label, storage_ui->storage_arc, LV_ALIGN_CENTER, 0, 0);
-    
-    // 信息区域 - 右侧
-    
-    // 详细信息标签
-    storage_ui->info_label = lv_label_create(storage_ui->main_cont);
-    lv_obj_set_style_text_font(storage_ui->info_label, font_normal, 0);
-    lv_obj_set_style_text_color(storage_ui->info_label, lv_color_white(), 0);
-    lv_label_set_text(storage_ui->info_label, "0 KB / 0 KB");
-    lv_obj_align(storage_ui->info_label, LV_ALIGN_RIGHT_MID, -10, -45);  // 右侧偏上
-
-    // 新增内存半圆弧进度条 - 向下开口
-    storage_ui->memory_arc = lv_arc_create(storage_ui->main_cont);
-    lv_obj_set_size(storage_ui->memory_arc, 70, 70);  // 半圆弧大小
-    lv_obj_align(storage_ui->memory_arc, LV_ALIGN_RIGHT_MID, -20, 20);  // 放置在空余位置
-    lv_arc_set_rotation(storage_ui->memory_arc, 180);  // 修改：旋转180度，使0度位置在底部
-    lv_arc_set_bg_angles(storage_ui->memory_arc, 0, 180);  // 保持0-180度的范围，但因为旋转了，会从左底到右底
+    // Memory arc - right side
+    storage_ui->memory_arc = lv_arc_create(main_panel);
+    lv_obj_set_size(storage_ui->memory_arc, 80, 80);
+    lv_obj_align(storage_ui->memory_arc, LV_ALIGN_RIGHT_MID, -10, 0);
+    lv_arc_set_rotation(storage_ui->memory_arc, 270);
+    lv_arc_set_bg_angles(storage_ui->memory_arc, 0, 360);
     lv_arc_set_range(storage_ui->memory_arc, 0, 100);
     lv_arc_set_value(storage_ui->memory_arc, 0);
     lv_obj_remove_style(storage_ui->memory_arc, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(storage_ui->memory_arc, 8, LV_PART_MAIN);
     lv_obj_set_style_arc_width(storage_ui->memory_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(0x393E4B), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(color_accent2), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
+    
+    // Storage title
+    lv_obj_t *storage_title = lv_label_create(main_panel);
+    lv_obj_set_style_text_font(storage_title, font_small, 0);
+    lv_obj_set_style_text_color(storage_title, lv_color_hex(color_text_secondary), 0);
+    lv_label_set_text(storage_title, "STORAGE");
+    lv_obj_align_to(storage_title, storage_ui->storage_arc, LV_ALIGN_OUT_TOP_MID, 0, -5);
 
-    // 内存百分比标签 - 在半圆弧中心
-    storage_ui->memory_percent_label = lv_label_create(storage_ui->main_cont);
+    // Storage percentage
+    storage_ui->percent_label = lv_label_create(main_panel);
+    lv_obj_set_style_text_font(storage_ui->percent_label, font_big, 0);
+    lv_obj_set_style_text_color(storage_ui->percent_label, lv_color_hex(color_text), 0);
+    lv_label_set_text(storage_ui->percent_label, "0%");
+    lv_obj_align_to(storage_ui->percent_label, storage_ui->storage_arc, LV_ALIGN_CENTER, 0, 0);
+
+    // Storage details
+    storage_ui->info_label = lv_label_create(main_panel);
+    lv_obj_set_style_text_font(storage_ui->info_label, font_small, 0);
+    lv_obj_set_style_text_color(storage_ui->info_label, lv_color_hex(color_text_secondary), 0);
+    lv_label_set_text(storage_ui->info_label, "0 / 0");
+    lv_obj_align_to(storage_ui->info_label, storage_ui->storage_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+    
+    // Memory title
+    lv_obj_t *memory_title = lv_label_create(main_panel);
+    lv_obj_set_style_text_font(memory_title, font_small, 0);
+    lv_obj_set_style_text_color(memory_title, lv_color_hex(color_text_secondary), 0);
+    lv_label_set_text(memory_title, "MEMORY");
+    lv_obj_align_to(memory_title, storage_ui->memory_arc, LV_ALIGN_OUT_TOP_MID, 0, -5);
+
+    // Memory percentage
+    storage_ui->memory_percent_label = lv_label_create(main_panel);
     lv_obj_set_style_text_font(storage_ui->memory_percent_label, font_big, 0);
-    lv_obj_set_style_text_color(storage_ui->memory_percent_label, lv_color_white(), 0);
+    lv_obj_set_style_text_color(storage_ui->memory_percent_label, lv_color_hex(color_text), 0);
     lv_label_set_text(storage_ui->memory_percent_label, "0%");
     lv_obj_align_to(storage_ui->memory_percent_label, storage_ui->memory_arc, LV_ALIGN_CENTER, 0, 0);
-
-    // 内存详细信息标签
-    storage_ui->memory_info_label = lv_label_create(storage_ui->main_cont);
-    lv_obj_set_style_text_font(storage_ui->memory_info_label, font_normal, 0);
-    lv_obj_set_style_text_color(storage_ui->memory_info_label, lv_color_white(), 0);
-    lv_label_set_text(storage_ui->memory_info_label, "0 KB / 0 KB");
-    lv_obj_align(storage_ui->memory_info_label, LV_ALIGN_RIGHT_MID, -20, -40);  // 放置在半圆弧下方
+    
+    // Memory details
+    storage_ui->memory_info_label = lv_label_create(main_panel);
+    lv_obj_set_style_text_font(storage_ui->memory_info_label, font_small, 0);
+    lv_obj_set_style_text_color(storage_ui->memory_info_label, lv_color_hex(color_text_secondary), 0);
+    lv_label_set_text(storage_ui->memory_info_label, "0 / 0");
+    lv_obj_align_to(storage_ui->memory_info_label, storage_ui->memory_arc, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
 }
 
 /**
