@@ -209,7 +209,7 @@ static void create_ui(void) {
     lv_obj_set_style_text_font(storage_ui->info_label, font_small, 0);
     lv_obj_set_style_text_color(storage_ui->info_label, lv_color_hex(color_text_secondary), 0);
     lv_label_set_text(storage_ui->info_label, "0 / 0");
-    lv_obj_align_to(storage_ui->info_label, storage_ui->storage_arc, LV_ALIGN_OUT_BOTTOM_MID, -15, 0);
+    lv_obj_align_to(storage_ui->info_label, storage_ui->storage_arc, LV_ALIGN_OUT_BOTTOM_MID, -20, 0);
     
     // Memory title
     lv_obj_t *memory_title = lv_label_create(main_panel);
@@ -230,7 +230,7 @@ static void create_ui(void) {
     lv_obj_set_style_text_font(storage_ui->memory_info_label, font_small, 0);
     lv_obj_set_style_text_color(storage_ui->memory_info_label, lv_color_hex(color_text_secondary), 0);
     lv_label_set_text(storage_ui->memory_info_label, "0 / 0");
-    lv_obj_align_to(storage_ui->memory_info_label, storage_ui->memory_arc, LV_ALIGN_OUT_BOTTOM_MID, -20, 0);
+    lv_obj_align_to(storage_ui->memory_info_label, storage_ui->memory_arc, LV_ALIGN_OUT_BOTTOM_MID, -25, 0);
 }
 
 /**
