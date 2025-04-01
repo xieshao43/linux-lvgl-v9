@@ -169,62 +169,74 @@ void storage_monitor_close(void) {
 
 static void create_cpu_4cores_page() {
     const lv_font_t *font_small = &lv_font_montserrat_12;
-    const lv_font_t *font_mid = &lv_font_montserrat_14;
+    const lv_font_t *font_mid = &lv_font_montserrat_16;
     
-    uint32_t color_bg = 0x121212;         // 深色背景
-    uint32_t color_panel = 0x1E1E1E;      // 面板背景
+    // 优雅高级配色方案
+    uint32_t color_bg = 0x1A1A2E;         // 深蓝黑背景
+    uint32_t color_panel = 0x16213E;      // 深蓝面板
+    uint32_t color_accent = 0x0F3460;     // 深红紫色强调
     uint32_t color_core_colors[CPU_CORES] = {
-        0x3498DB,  // 蓝色 - 核心0
-        0xE74C3C,  // 红色 - 核心1
-        0xF39C12,  // 橙色 - 核心2
-        0x9B59B6   // 紫色 - 核心3
+        0xD4AF37,  // Rich Gold - Core 0
+        0x9D2933,  // Crimson Red - Core 1
+        0x2E8B57,  // Emerald Green - Core 2
+        0x9932CC   // Royal Purple - Core 3
     };
-    uint32_t color_text = 0xFFFFFF;       // 文本颜色
-    uint32_t color_text_secondary = 0xB0B0B0; // 次要文本
+    uint32_t color_text = 0xE6E6E6;       // 柔和白色
+    uint32_t color_text_secondary = 0xB8B8D0; // 淡紫灰
     
-    // 创建CPU面板
+    // 创建CPU面板 - 使用align而非绝对位置
     lv_obj_t *cpu_panel = lv_obj_create(storage_ui->main_cont);
     lv_obj_set_size(cpu_panel, 240, 135);
     lv_obj_align(cpu_panel, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_bg_color(cpu_panel, lv_color_hex(color_panel), 0);
     lv_obj_set_style_border_width(cpu_panel, 0, 0);
-    lv_obj_set_style_radius(cpu_panel, 10, 0);
-    lv_obj_set_style_shadow_width(cpu_panel, 10, 0);
-    lv_obj_set_style_shadow_color(cpu_panel, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_shadow_opa(cpu_panel, LV_OPA_30, 0);
-    lv_obj_set_style_pad_all(cpu_panel, 5, 0);
+    lv_obj_set_style_radius(cpu_panel, 0, 0);
+    lv_obj_set_style_pad_all(cpu_panel, 15, 0);
     storage_ui->cpu_panel = cpu_panel;
     
     // CPU标题
     lv_obj_t *cpu_title = lv_label_create(cpu_panel);
-    lv_obj_set_style_text_font(cpu_title, font_small, 0);
+    lv_obj_set_style_text_font(cpu_title, font_mid, 0);
     lv_obj_set_style_text_color(cpu_title, lv_color_hex(color_text), 0);
     lv_label_set_text(cpu_title, "CPU MONITOR");
-    lv_obj_align(cpu_title, LV_ALIGN_TOP_MID, 0, 3);
+    lv_obj_align(cpu_title, LV_ALIGN_TOP_MID, 0, -10); 
     
-    // 四个水平进度条，每个核心一个
-    int bar_height = 5;       // 进度条高度
-    int bar_width = 155;       // 进度条宽度
-    int bar_spacing = 25;      // 进度条之间的垂直间距
-    int start_y = 25;          // 第一个进度条的垂直位置
+    // 修复分隔线 - 使用矩形替代线条避免类型不匹配问题
+    lv_obj_t *separator = lv_obj_create(cpu_panel);
+    lv_obj_set_size(separator, 210, 2);
+    lv_obj_align_to(separator, cpu_title, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
+    lv_obj_set_style_bg_color(separator, lv_color_hex(color_accent), 0);
+    lv_obj_set_style_border_width(separator, 0, 0);
+    lv_obj_set_style_radius(separator, 0, 0);
+    
+    // 四个水平进度条，每个核心一个 - 调整间距和大小
+    int bar_height = 10;       // 略微减小高度
+    int bar_width = 150;       // 略微减小宽度适应屏幕
+    int vertical_spacing = 20; // 减小垂直间距
+    int start_y = 20;          // 调整起始位置
+    int left_margin = 30;      // 调整左侧边距
     
     for(int i = 0; i < CPU_CORES; i++) {
         // 核心标签
         lv_obj_t *core_label = lv_label_create(cpu_panel);
         lv_obj_set_style_text_font(core_label, font_small, 0);
         lv_obj_set_style_text_color(core_label, lv_color_hex(color_core_colors[i]), 0);
-        lv_label_set_text_fmt(core_label, "C%d", i);
-        lv_obj_align(core_label, LV_ALIGN_TOP_LEFT, 5, start_y + i * bar_spacing);
+        lv_label_set_text_fmt(core_label, "Core%d", i);
         
-        // 使用进度条
+        // 创建进度条
         lv_obj_t *bar = lv_bar_create(cpu_panel);
         lv_obj_set_size(bar, bar_width, bar_height);
-        lv_obj_align(bar, LV_ALIGN_TOP_LEFT, 25, start_y + i * bar_spacing);
-        lv_obj_set_style_bg_color(bar, lv_color_hex(0x2A2A2A), LV_PART_MAIN);
+        lv_obj_align(bar, LV_ALIGN_TOP_LEFT, left_margin, start_y + i * vertical_spacing);
+        lv_obj_set_style_bg_color(bar, lv_color_hex(0x2A2A3E), LV_PART_MAIN);
         lv_obj_set_style_bg_color(bar, lv_color_hex(color_core_colors[i]), LV_PART_INDICATOR);
+        lv_obj_set_style_bg_grad_color(bar, lv_color_hex(0x1A1A2E), LV_PART_INDICATOR);
+        lv_obj_set_style_bg_grad_dir(bar, LV_GRAD_DIR_HOR, LV_PART_INDICATOR);
         lv_obj_set_style_radius(bar, 3, 0);
         lv_bar_set_range(bar, 0, 100);
         lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+        
+        // 使用相对于进度条的中心点对齐标签
+        lv_obj_align_to(core_label, bar, LV_ALIGN_OUT_LEFT_MID, -5, 0);
         
         // 保存进度条引用
         storage_ui->cpu_core_arc[i] = bar;
@@ -236,14 +248,23 @@ static void create_cpu_4cores_page() {
         lv_label_set_text(storage_ui->cpu_core_percent_label[i], "0%");
         lv_obj_align_to(storage_ui->cpu_core_percent_label[i], bar, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
     }
-    
-    // CPU温度显示
-    storage_ui->cpu_info_label = lv_label_create(cpu_panel);
-    lv_obj_set_style_text_font(storage_ui->cpu_info_label, font_small, 0);
-    lv_obj_set_style_text_color(storage_ui->cpu_info_label, lv_color_hex(color_text_secondary), 0);
-    lv_label_set_text(storage_ui->cpu_info_label, "Temperature: 0°C");
-    lv_obj_align(storage_ui->cpu_info_label, LV_ALIGN_BOTTOM_MID, 0, -5);
 
+    // 温度显示容器 - 调整大小和位置
+    lv_obj_t *temp_container = lv_obj_create(cpu_panel);
+    lv_obj_set_size(temp_container, 210, 25);
+    lv_obj_align(temp_container, LV_ALIGN_BOTTOM_MID, 0, 10);
+    lv_obj_set_style_bg_color(temp_container, lv_color_hex(color_accent), 0);
+    lv_obj_set_style_bg_opa(temp_container, LV_OPA_20, 0);
+    lv_obj_set_style_radius(temp_container, 6, 0);
+    lv_obj_set_style_border_width(temp_container, 0, 0);
+    
+    // 温度标签
+    storage_ui->cpu_info_label = lv_label_create(temp_container);
+    lv_obj_set_style_text_font(storage_ui->cpu_info_label, font_small, 0); // 改小字体
+    lv_obj_set_style_text_color(storage_ui->cpu_info_label, lv_color_hex(color_text), 0);
+    lv_label_set_text(storage_ui->cpu_info_label, "Temperature: 0°C");
+    lv_obj_center(storage_ui->cpu_info_label);
+    
     // 初始时隐藏CPU面板
     lv_obj_add_flag(cpu_panel, LV_OBJ_FLAG_HIDDEN);
 }
@@ -375,8 +396,15 @@ static void update_ui_values(void) {
         storage_percent = (uint8_t)((used_space * 100) / total_space);
     }
     
-    // 设置存储弧形进度条
-    lv_arc_set_value(storage_ui->storage_arc, storage_percent);
+    // 存储进度条动画
+    lv_anim_t storage_anim;
+    lv_anim_init(&storage_anim);
+    lv_anim_set_var(&storage_anim, storage_ui->storage_arc);
+    lv_anim_set_values(&storage_anim, lv_arc_get_value(storage_ui->storage_arc), storage_percent);
+    lv_anim_set_time(&storage_anim, 1000);  // 更长的动画时间
+    lv_anim_set_exec_cb(&storage_anim, (lv_anim_exec_xcb_t)lv_arc_set_value);
+    lv_anim_set_path_cb(&storage_anim, lv_anim_path_overshoot);  // 稍微超过目标值再回弹
+    lv_anim_start(&storage_anim);
     
     // 更新存储百分比标签
     lv_label_set_text_fmt(storage_ui->percent_label, "%d%%", storage_percent);
@@ -393,8 +421,15 @@ static void update_ui_values(void) {
         memory_percent = (uint8_t)((used_memory * 100) / total_memory);
     }
     
-    // 设置内存半圆弧进度条
-    lv_arc_set_value(storage_ui->memory_arc, memory_percent);
+    // 内存进度条动画
+    lv_anim_t memory_anim;
+    lv_anim_init(&memory_anim);
+    lv_anim_set_var(&memory_anim, storage_ui->memory_arc);
+    lv_anim_set_values(&memory_anim, lv_arc_get_value(storage_ui->memory_arc), memory_percent);
+    lv_anim_set_time(&memory_anim, 1000);
+    lv_anim_set_exec_cb(&memory_anim, (lv_anim_exec_xcb_t)lv_arc_set_value);
+    lv_anim_set_path_cb(&memory_anim, lv_anim_path_overshoot);
+    lv_anim_start(&memory_anim);
     
     // 更新内存百分比标签
     lv_label_set_text_fmt(storage_ui->memory_percent_label, "%d%%", memory_percent);
@@ -403,15 +438,38 @@ static void update_ui_values(void) {
     lv_label_set_text_fmt(storage_ui->memory_info_label, "%s / %s", 
                           get_size_str(used_memory, used_buf, sizeof(used_buf)),
                           get_size_str(total_memory, total_buf, sizeof(total_buf)));
-    // 更新CPU核心使用率
+        // 更新CPU核心使用率
     for(int i = 0; i < CPU_CORES; i++) {
-        lv_bar_set_value(storage_ui->cpu_core_arc[i], (uint8_t)cpu_core_usage[i], LV_ANIM_OFF);
-        lv_label_set_text_fmt(storage_ui->cpu_core_percent_label[i], "%d%%", (uint8_t)cpu_core_usage[i]);
+        // 获取当前值和目标值
+        int32_t current_value = lv_bar_get_value(storage_ui->cpu_core_arc[i]);
+        int32_t target_value = (uint8_t)cpu_core_usage[i];
+        
+        // 避免很小的变化也触发动画
+        if(abs(current_value - target_value) > 1) {
+            // 创建自定义动画
+            lv_anim_t a;
+            lv_anim_init(&a);
+            lv_anim_set_var(&a, storage_ui->cpu_core_arc[i]);
+            lv_anim_set_values(&a, current_value, target_value);
+            lv_anim_set_time(&a, 800);  // 延长动画时间为800ms
+            lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_bar_set_value);
+            
+            // 使用平滑的缓动函数
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+            
+            // 启动动画
+            lv_anim_start(&a);
+        } else {
+            // 小变化直接设置，避免视觉抖动
+            lv_bar_set_value(storage_ui->cpu_core_arc[i], target_value, LV_ANIM_OFF);
+        }
+        
+        // 百分比标签更新
+        lv_label_set_text_fmt(storage_ui->cpu_core_percent_label[i], "%d%%", target_value);
     }
-    
+
     // 更新CPU温度
     lv_label_set_text_fmt(storage_ui->cpu_info_label, "Temperature: %d°C", cpu_temp);
-
 }
 
 /**
@@ -469,8 +527,11 @@ static void show_current_page() {
 static void read_cpu_data(void) {
     FILE *proc_stat;
     char buffer[256];
-    static uint64_t prev_idle[CPU_CORES] = {0};
-    static uint64_t prev_total[CPU_CORES] = {0};
+            
+    static uint64_t prev_idle[CPU_CORES+1] = {0};
+    static uint64_t prev_total[CPU_CORES+1] = {0};
+
+// 其他代码保持不变
     
     // 打开/proc/stat文件读取CPU使用率
     proc_stat = fopen("/proc/stat", "r");
