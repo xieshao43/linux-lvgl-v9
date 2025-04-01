@@ -203,17 +203,17 @@ static void create_cpu_4cores_page() {
     lv_obj_align(cpu_title, LV_ALIGN_TOP_MID, 0, 3);
     
     // 四个水平进度条，每个核心一个
-    int bar_height = 8;       // 进度条高度
-    int bar_width = 145;       // 进度条宽度
-    int bar_spacing = 20;      // 进度条之间的垂直间距
-    int start_y = 20;          // 第一个进度条的垂直位置
+    int bar_height = 5;       // 进度条高度
+    int bar_width = 155;       // 进度条宽度
+    int bar_spacing = 25;      // 进度条之间的垂直间距
+    int start_y = 25;          // 第一个进度条的垂直位置
     
     for(int i = 0; i < CPU_CORES; i++) {
         // 核心标签
         lv_obj_t *core_label = lv_label_create(cpu_panel);
         lv_obj_set_style_text_font(core_label, font_small, 0);
         lv_obj_set_style_text_color(core_label, lv_color_hex(color_core_colors[i]), 0);
-        lv_label_set_text_fmt(core_label, "Core%d", i);
+        lv_label_set_text_fmt(core_label, "C%d", i);
         lv_obj_align(core_label, LV_ALIGN_TOP_LEFT, 5, start_y + i * bar_spacing);
         
         // 使用进度条
