@@ -184,7 +184,7 @@ static void create_cpu_4cores_page() {
     
     // 创建CPU面板
     lv_obj_t *cpu_panel = lv_obj_create(storage_ui->main_cont);
-    lv_obj_set_size(cpu_panel, 220, 115);
+    lv_obj_set_size(cpu_panel, 240, 135);
     lv_obj_align(cpu_panel, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_bg_color(cpu_panel, lv_color_hex(color_panel), 0);
     lv_obj_set_style_border_width(cpu_panel, 0, 0);
@@ -203,17 +203,17 @@ static void create_cpu_4cores_page() {
     lv_obj_align(cpu_title, LV_ALIGN_TOP_MID, 0, 3);
     
     // 四个水平进度条，每个核心一个
-    int bar_height = 12;       // 进度条高度
-    int bar_width = 155;       // 进度条宽度
-    int bar_spacing = 18;      // 进度条之间的垂直间距
-    int start_y = 12;          // 第一个进度条的垂直位置
+    int bar_height = 8;       // 进度条高度
+    int bar_width = 145;       // 进度条宽度
+    int bar_spacing = 20;      // 进度条之间的垂直间距
+    int start_y = 20;          // 第一个进度条的垂直位置
     
     for(int i = 0; i < CPU_CORES; i++) {
         // 核心标签
         lv_obj_t *core_label = lv_label_create(cpu_panel);
         lv_obj_set_style_text_font(core_label, font_small, 0);
         lv_obj_set_style_text_color(core_label, lv_color_hex(color_core_colors[i]), 0);
-        lv_label_set_text_fmt(core_label, "C%d", i);
+        lv_label_set_text_fmt(core_label, "Core%d", i);
         lv_obj_align(core_label, LV_ALIGN_TOP_LEFT, 5, start_y + i * bar_spacing);
         
         // 使用进度条
@@ -252,22 +252,22 @@ static void create_cpu_4cores_page() {
  * 创建UI元素
  */
 static void create_ui(void) {
-    // Font definitions
+    // 字体定义
     const lv_font_t *font_big = &lv_font_montserrat_22;
     const lv_font_t *font_small = &lv_font_montserrat_12;
     
-    // Elegant color scheme
-    uint32_t color_bg = 0x2D3436;        // Deep slate background
-    uint32_t color_panel = 0x34495E;     // Rich navy panel
-    uint32_t color_accent1 = 0x9B59B6;   // Elegant purple
-    uint32_t color_accent2 = 0x3498DB;   // Sophisticated blue
-    uint32_t color_text = 0xECF0F1;      // Soft white
-    uint32_t color_text_secondary = 0xBDC3C7; // Silver gray
+    // 优雅的配色方案
+    uint32_t color_bg = 0x2D3436;        // 深板岩背景色
+    uint32_t color_panel = 0x34495E;     // 深蓝色面板
+    uint32_t color_accent1 = 0x9B59B6;   // 优雅的紫色
+    uint32_t color_accent2 = 0x3498DB;   // 精致的蓝色
+    uint32_t color_text = 0xECF0F1;      // 柔和的白色
+    uint32_t color_text_secondary = 0xBDC3C7; // 银灰色
     
-    // Set main background
+    // 设置主背景
     lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(color_bg), 0);
     
-    // Main container - full screen
+    // 主容器 - 全屏
     storage_ui->main_cont = lv_obj_create(lv_screen_active());
     lv_obj_set_size(storage_ui->main_cont, 240, 135);
     lv_obj_set_pos(storage_ui->main_cont, 0, 0);
@@ -276,7 +276,7 @@ static void create_ui(void) {
     lv_obj_set_style_pad_all(storage_ui->main_cont, 10, 0);
     lv_obj_set_style_radius(storage_ui->main_cont, 0, 0);
     
-    // Single unified panel
+    // 统一面板
     lv_obj_t *main_panel = lv_obj_create(storage_ui->main_cont);
     lv_obj_set_size(main_panel, 235, 130);
     lv_obj_align(main_panel, LV_ALIGN_CENTER, 0, 0);
@@ -288,7 +288,7 @@ static void create_ui(void) {
     lv_obj_set_style_shadow_color(main_panel, lv_color_hex(0x000000), 0);
     lv_obj_set_style_shadow_opa(main_panel, LV_OPA_30, 0);
     
-    // Storage arc - left side
+    // 存储弧形进度条 - 左侧
     storage_ui->storage_arc = lv_arc_create(main_panel);
     lv_obj_set_size(storage_ui->storage_arc, 75, 75);
     lv_obj_align(storage_ui->storage_arc, LV_ALIGN_LEFT_MID, 10, 0);
@@ -302,7 +302,7 @@ static void create_ui(void) {
     lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
     
-    // Memory arc - right side
+    // 内存弧形进度条 - 右侧
     storage_ui->memory_arc = lv_arc_create(main_panel);
     lv_obj_set_size(storage_ui->memory_arc, 75, 75);
     lv_obj_align(storage_ui->memory_arc, LV_ALIGN_RIGHT_MID, -10, 0);
@@ -316,14 +316,14 @@ static void create_ui(void) {
     lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(storage_ui->memory_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
     
-    // Storage title
+    // 存储标题
     lv_obj_t *storage_title = lv_label_create(main_panel);
     lv_obj_set_style_text_font(storage_title, font_small, 0);
     lv_obj_set_style_text_color(storage_title, lv_color_hex(color_text_secondary), 0);
     lv_label_set_text(storage_title, "STORAGE");
     lv_obj_align_to(storage_title, storage_ui->storage_arc, LV_ALIGN_OUT_TOP_MID, 0, -5);
 
-    // Storage percentage
+    // 存储百分比
     storage_ui->percent_label = lv_label_create(main_panel);
     lv_obj_set_style_text_font(storage_ui->percent_label, font_big, 0);
     lv_obj_set_style_text_color(storage_ui->percent_label, lv_color_hex(color_text), 0);
