@@ -83,7 +83,7 @@ static uint64_t used_memory = 0;     // 已用内存 (KB)
 /**********************
  *  静态函数原型
  **********************/
-static void create_ui(void);
+static void create_ram_rom_ui(void);
 static void update_ui_values(void);
 static void update_timer_cb(lv_timer_t *timer);
 static void read_storage_data(void);
@@ -120,7 +120,7 @@ void storage_monitor_init(const char *path) {
     lv_obj_set_style_bg_color(lv_screen_active(), lv_color_hex(COLOR_BG), 0);
     
     // 创建所有UI元素
-    create_ui();                         // 创建第一页 - 存储/内存UI
+    create_ram_rom_ui();                        // 创建第一页 - 存储/内存UI
     create_cpu_4cores_page();            // 创建第二页 - CPU四核UI
     
     // 读取数据
@@ -272,7 +272,7 @@ static void create_cpu_4cores_page() {
 /**
  * 创建UI元素
  */
-static void create_ui(void) {
+static void create_ram_rom_ui(void) {
     // 字体定义
     const lv_font_t *font_big = &lv_font_montserrat_22;
     const lv_font_t *font_small = &lv_font_montserrat_12;
@@ -320,7 +320,7 @@ static void create_ui(void) {
     lv_obj_remove_style(storage_ui->storage_arc, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_MAIN);
     lv_obj_set_style_arc_width(storage_ui->storage_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
+    lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(0x8DBF9B), LV_PART_INDICATOR);
     lv_obj_set_style_arc_color(storage_ui->storage_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
     
     // 内存弧形进度条 - 右侧
