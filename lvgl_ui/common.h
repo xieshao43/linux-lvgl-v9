@@ -5,7 +5,7 @@
 
 /* 页面管理定义 */
 #define PAGE_COUNT 2
-#define PAGE_SWITCH_INTERVAL 15000  // 15秒
+#define PAGE_SWITCH_INTERVAL 9000  // 15秒
 #define UPDATE_INTERVAL 300         // 更新间隔，毫秒
 
 /* CPU相关定义 */
