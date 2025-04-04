@@ -3,7 +3,6 @@
 #include "core/data_manager.h"
 #include "modules/storage_ui.h"
 #include "modules/cpu_ui.h"
-#include "modules/wifi_ui.h"
 #include <stdio.h>
 #include <stdlib.h> 
 
