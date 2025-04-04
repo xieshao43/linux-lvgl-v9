@@ -25,9 +25,6 @@ void storage_monitor_init(const char *path) {
     // 注册CPU模块
     ui_manager_register_module(cpu_ui_get_module());
     
-    // 注册Wi-Fi模块
-    ui_manager_register_module(wifi_ui_get_module());
-
     // 显示第一个模块
     ui_manager_show_module(0);
 }
