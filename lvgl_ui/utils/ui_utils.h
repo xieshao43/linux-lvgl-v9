@@ -32,4 +32,12 @@ void ui_utils_animate_bar(lv_obj_t *bar, int32_t start_value, int32_t end_value,
 // 添加自定义弹性动画路径函数声明
 int32_t ui_utils_anim_path_overshoot(const lv_anim_t * a);
 
+/**
+ * 创建从圆弧进度条到水平进度条的过渡动画
+ * 动画结束后会自动清理临时对象
+ */
+void ui_utils_create_transition_animation(void);
+
+
+
 #endif // UI_UTILS_H

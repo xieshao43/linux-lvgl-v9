@@ -300,10 +300,19 @@ static void _page_switch_cb(lv_timer_t *timer)
         ui_mgr->modules[ui_mgr->current_module]->hide();
     }
     
-    // 显示下一个模块
-    if (next_module->show) {
-        next_module->show();
-    }
+    // 在模块切换之间添加过渡动画
+    ui_utils_create_transition_animation();
+    
+    // 设置短暂延时再显示下一个模块，确保过渡动画有足够时间播放
+    lv_timer_t *show_next_timer = lv_timer_create(
+        (lv_timer_cb_t)lv_obj_clear_flag, 
+        2000,   // 2秒延时，让过渡动画完成
+        NULL
+    );
+    lv_timer_set_repeat_count(show_next_timer, 1);
+    
+    // 修改回调和用户数据以显示下一个模块
+    lv_timer_set_cb(show_next_timer, (lv_timer_cb_t)next_module->show);
     
     // 更新当前模块索引
     ui_mgr->current_module = next_module_idx;
@@ -376,6 +385,9 @@ void ui_manager_show_module(uint8_t index) {
     // 获取当前模块和目标模块
     ui_module_t *current_module = ui_mgr->modules[ui_mgr->current_module];
     ui_module_t *target_module = ui_mgr->modules[index];
+    
+    // 移除这一行，已在_page_switch_cb中添加
+    // ui_utils_create_transition_animation();
     
     // 显示目标模块
     if (target_module->show) {
