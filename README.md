@@ -1,6 +1,6 @@
 # linux_lvgl_V9.0
 
-#Install steps:
+# Install steps:
 
    mkdir build and cd build
    cmake ..
@@ -10,7 +10,7 @@
 
 
 
-#linux board need lowest:
+# linux board need lowest:
 
 CPU: Allwinner H3, 四核Cortex-A7 @ 1GHz
 GPU: ARM Mali400 MP2 GPU
