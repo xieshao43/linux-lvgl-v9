@@ -284,38 +284,52 @@ static void _perform_transition_anim(lv_obj_t *old_page, lv_obj_t *new_page, ui_
     lv_anim_start(&anim_new);
 }
 
+
+static bool forward_switch = true;
+
 // 页面切换回调 - 简化版本
 static void _page_switch_cb(lv_timer_t *timer)
 {
     if (!ui_mgr || ui_mgr->module_count == 0) return;
-    
+
     // 获取当前模块和下一个模块
     uint8_t next_module_idx = (ui_mgr->current_module + 1) % ui_mgr->module_count;
+    if (!forward_switch) {
+        // 如果是反向切换，获取上一个模块
+        next_module_idx = (ui_mgr->current_module - 1 + ui_mgr->module_count) % ui_mgr->module_count;
+    }
     ui_module_t *next_module = ui_mgr->modules[next_module_idx];
-    
+
     UI_DEBUG_LOG("切换页面: 从 %d 到 %d", ui_mgr->current_module, next_module_idx);
-    
+
     // 隐藏当前模块
     if (ui_mgr->modules[ui_mgr->current_module]->hide) {
         ui_mgr->modules[ui_mgr->current_module]->hide();
     }
-    
-    // 在模块切换之间添加过渡动画
-    ui_utils_create_transition_animation();
-    
+
+    // 根据切换方向添加过渡动画
+    if (forward_switch) {
+        ui_utils_create_transition_animation();
+    } else {
+        ui_utils_create_reverse_transition_animation();
+    }
+
     // 设置短暂延时再显示下一个模块，确保过渡动画有足够时间播放
     lv_timer_t *show_next_timer = lv_timer_create(
-        (lv_timer_cb_t)lv_obj_clear_flag, 
+        (lv_timer_cb_t)lv_obj_clear_flag,
         2000,   // 2秒延时，让过渡动画完成
         NULL
     );
     lv_timer_set_repeat_count(show_next_timer, 1);
-    
+
     // 修改回调和用户数据以显示下一个模块
     lv_timer_set_cb(show_next_timer, (lv_timer_cb_t)next_module->show);
-    
+
     // 更新当前模块索引
     ui_mgr->current_module = next_module_idx;
+
+    // 切换完成后，切换标志位
+    forward_switch =!forward_switch;
 }
 
 // 数据更新回调
@@ -386,8 +400,6 @@ void ui_manager_show_module(uint8_t index) {
     ui_module_t *current_module = ui_mgr->modules[ui_mgr->current_module];
     ui_module_t *target_module = ui_mgr->modules[index];
     
-    // 移除这一行，已在_page_switch_cb中添加
-    // ui_utils_create_transition_animation();
     
     // 显示目标模块
     if (target_module->show) {

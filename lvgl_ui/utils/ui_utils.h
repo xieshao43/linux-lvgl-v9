@@ -38,6 +38,7 @@ int32_t ui_utils_anim_path_overshoot(const lv_anim_t * a);
  */
 void ui_utils_create_transition_animation(void);
 
+void ui_utils_create_reverse_transition_animation(void);
 
 
 #endif // UI_UTILS_H

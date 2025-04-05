@@ -83,7 +83,7 @@ static void _create_ui(lv_obj_t *parent) {
     
     if(!styles_initialized) {
         lv_style_init(&panel_style);
-        lv_style_set_bg_color(&panel_style, lv_color_hex(0x34495E));
+        lv_style_set_bg_color(&panel_style, lv_color_hex(0x111827));
         lv_style_set_bg_grad_color(&panel_style, lv_color_hex(0x2C3E50));
         lv_style_set_bg_grad_dir(&panel_style, LV_GRAD_DIR_VER);
         lv_style_set_border_width(&panel_style, 0);
@@ -304,7 +304,7 @@ static void _show_ui(void) {
     // 创建交错进入动画效果
     lv_anim_t anim;
     
-    // 存储环形图动画 - 动画到实际百分比，而不是固定的100%
+    // 存储环形图动画 - 动画到实际百分比
     lv_anim_init(&anim);
     lv_anim_set_var(&anim, ui_data.storage_arc);
     lv_anim_set_values(&anim, 0, storage_percent); // 使用实际百分比
