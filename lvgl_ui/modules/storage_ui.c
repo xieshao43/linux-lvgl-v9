@@ -71,6 +71,39 @@ ui_module_t* storage_ui_get_module(void) {
 
 // 创建存储与内存UI - 基于原来的create_ram_rom_ui()
 static void _create_ui(lv_obj_t *parent) {
+    // 创建可复用的样式对象
+    static lv_style_t panel_style;
+    static lv_style_t arc_bg_style;
+    static lv_style_t arc_indic_style;
+    static lv_style_t title_style;
+    static lv_style_t percent_style;
+    static lv_style_t info_style;
+    
+    static bool styles_initialized = false;
+    
+    if(!styles_initialized) {
+        lv_style_init(&panel_style);
+        lv_style_set_bg_color(&panel_style, lv_color_hex(0x34495E));
+        lv_style_set_bg_grad_color(&panel_style, lv_color_hex(0x2C3E50));
+        lv_style_set_bg_grad_dir(&panel_style, LV_GRAD_DIR_VER);
+        lv_style_set_border_width(&panel_style, 0);
+        lv_style_set_radius(&panel_style, 16);
+        lv_style_set_pad_all(&panel_style, 10);
+        lv_style_set_shadow_width(&panel_style, 20);
+        lv_style_set_shadow_spread(&panel_style, 4);
+        lv_style_set_shadow_color(&panel_style, lv_color_hex(0x101010));
+        lv_style_set_shadow_opa(&panel_style, LV_OPA_10);
+        
+        // 初始化其他样式...
+        styles_initialized = true;
+    }
+    
+    // 应用样式
+    ui_data.panel = lv_obj_create(parent);
+    lv_obj_set_size(ui_data.panel, 235, 130);
+    lv_obj_align(ui_data.panel, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_style(ui_data.panel, &panel_style, 0);
+    
     // 字体定义
     const lv_font_t *font_big = &lv_font_montserrat_22;
     const lv_font_t *font_small = &lv_font_montserrat_12;
@@ -82,27 +115,6 @@ static void _create_ui(lv_obj_t *parent) {
     uint32_t color_accent2 = 0x3498DB;   // 精致的蓝色
     uint32_t color_text = 0xECF0F1;      // 柔和的白色
     uint32_t color_text_secondary = 0xBDC3C7; // 银灰色
-    
-    // 创建面板 - 使用圆角矩形增加现代感
-    ui_data.panel = lv_obj_create(parent);
-    lv_obj_set_size(ui_data.panel, 235, 130);
-    lv_obj_align(ui_data.panel, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(ui_data.panel, lv_color_hex(color_panel), 0);
-    lv_obj_set_style_border_width(ui_data.panel, 0, 0);
-    lv_obj_set_style_radius(ui_data.panel, 16, 0); // 更大的圆角
-    lv_obj_set_style_pad_all(ui_data.panel, 10, 0);
-    
-    // 添加微妙的渐变色
-    lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x2C3E50), 0);
-    lv_obj_set_style_bg_grad_dir(ui_data.panel, LV_GRAD_DIR_VER, 0);
-    
-    // 优化阴影 - 使用苹果风格的柔和阴影
-    lv_obj_set_style_shadow_width(ui_data.panel, 20, 0);
-    lv_obj_set_style_shadow_spread(ui_data.panel, 4, 0); // 阴影扩散，增加柔和度
-    lv_obj_set_style_shadow_ofs_x(ui_data.panel, 0, 0);  // 居中阴影
-    lv_obj_set_style_shadow_ofs_y(ui_data.panel, 6, 0);  // 轻微下移
-    lv_obj_set_style_shadow_color(ui_data.panel, lv_color_hex(0x101010), 0);
-    lv_obj_set_style_shadow_opa(ui_data.panel, LV_OPA_10, 0); // 更柔和的阴影
     
     // 存储弧形进度条 - 左侧
     ui_data.storage_arc = lv_arc_create(ui_data.panel);
@@ -211,7 +223,7 @@ static void _update_ui(void) {
         ui_utils_size_to_str(storage_total, ui_cache.total_str, sizeof(ui_cache.total_str));
         
         // 输出调试信息，帮助诊断问题
-        printf("存储更新: %d%%, %s/%s\n", storage_percent, ui_cache.used_str, ui_cache.total_str);
+        //printf("存储更新: %d%%, %s/%s\n", storage_percent, ui_cache.used_str, ui_cache.total_str);
         
         // 更新存储UI - 使用优化的动画控制逻辑
         int32_t current = lv_arc_get_value(ui_data.storage_arc);

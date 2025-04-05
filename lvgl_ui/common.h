@@ -5,7 +5,7 @@
 
 /* 页面管理定义 */
 #define PAGE_COUNT 2
-#define PAGE_SWITCH_INTERVAL 9000  // 9秒，更符合人的注意力周期
+#define PAGE_SWITCH_INTERVAL 6000  // 9秒，更符合人的注意力周期
 #define UPDATE_INTERVAL 300        // 更新间隔，毫秒
 
 /* 动画过渡类型定义 */
