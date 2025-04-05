@@ -3,7 +3,6 @@
 #include "core/data_manager.h"
 #include "modules/storage_ui.h"
 #include "modules/cpu_ui.h"
-#include "modules/wifi_ui.h"
 #include <stdio.h>
 #include <stdlib.h> 
 
@@ -19,15 +18,16 @@ void storage_monitor_init(const char *path) {
 
     // 初始化UI管理器
     ui_manager_init(lv_color_hex(COLOR_BG));
+    
+    // 设置过渡动画类型
+    ui_manager_set_anim_type(ANIM_SLIDE_LEFT); // 或者其他动画类型
 
     // 注册存储模块
     ui_manager_register_module(storage_ui_get_module());
 
     // 注册CPU模块
     ui_manager_register_module(cpu_ui_get_module());
-    
-    // 注册Wi-Fi模块
-    ui_manager_register_module(wifi_ui_get_module());
+
 
     // 显示第一个模块
     ui_manager_show_module(0);

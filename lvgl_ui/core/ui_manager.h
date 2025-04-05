@@ -29,6 +29,12 @@ void ui_manager_show_module(uint8_t index);
 void ui_manager_deinit(void);
 
 /**
+ * 设置界面过渡动画类型
+ * @param type 动画类型
+ */
+void ui_manager_set_anim_type(ui_anim_type_t type);
+
+/**
  * 获取主容器
  * @return 主容器对象
  */

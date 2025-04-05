@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>  // 使用isdigit函数
+#include <math.h>   // 添加math.h头文件，解决fabs函数未声明问题
 
 // 存储相关数据
 static uint64_t storage_total = 0;
@@ -18,8 +20,19 @@ static float cpu_usage = 0.0;
 static float cpu_core_usage[CPU_CORES] = {0};
 static uint8_t cpu_temp = 0;
 
-// 读取存储数据 - 从原有代码中提取
+// 添加优化标志，检测是否有动画正在进行
+static bool anim_in_progress = false;
+
+// 添加缓存控制变量
+static uint32_t last_full_update_time = 0;
+static bool data_changed = false;
+
+// 读取存储数据 - 优化I/O并增加缓存
 static void _read_storage_data(void) {
+    // 静态缓存值，避免无变化时的重复计算
+    static uint64_t last_storage_total = 0;
+    static uint64_t last_storage_used = 0;
+    
     FILE *cmd_output;
     char buffer[256];
     
@@ -59,10 +72,21 @@ static void _read_storage_data(void) {
             storage_used = storage_total;
         }
     }
+    
+    // 检查数据是否变化
+    if (storage_total != last_storage_total || storage_used != last_storage_used) {
+        last_storage_total = storage_total;
+        last_storage_used = storage_used;
+        data_changed = true;
+    }
 }
 
-// 读取内存数据
+// 读取内存数据 - 优化处理逻辑
 static void _read_memory_data(void) {
+    // 静态缓存变量
+    static uint64_t last_memory_total = 0;
+    static uint64_t last_memory_used = 0;
+    
     FILE *meminfo = fopen("/proc/meminfo", "r");
     
     if (meminfo) {
@@ -83,10 +107,22 @@ static void _read_memory_data(void) {
         memory_used = 512 * 1024;    // 512 MB
         memory_used += (rand() % 256) - 128;  // 随机波动
     }
+    
+    // 检查数据是否变化
+    if (memory_total != last_memory_total || memory_used != last_memory_used) {
+        last_memory_total = memory_total;
+        last_memory_used = memory_used;
+        data_changed = true;
+    }
 }
 
-// 优化后的CPU数据读取函数
+// 优化后的CPU数据读取函数 - 更高效的数据解析
 static void _read_cpu_data(void) {
+    // 保存上一次的值以检测变化
+    static float last_cpu_usage = 0.0;
+    static float last_cpu_core_usage[CPU_CORES] = {0};
+    static uint8_t last_cpu_temp = 0;
+    
     // 保持历史数据结构以确保兼容性
     static unsigned long long prev_cpu_data[CPU_CORES+1][8] = {0};
     char buffer[4096] = {0};  // 更大的缓冲区，一次读取所有数据
@@ -232,6 +268,26 @@ static void _read_cpu_data(void) {
             cpu_temp = last_valid_temp;
         }
     }
+    
+    // 检测数据变化
+    bool cpu_changed = (fabs(cpu_usage - last_cpu_usage) > 0.5f);
+    last_cpu_usage = cpu_usage;
+    
+    for (int i = 0; i < CPU_CORES; i++) {
+        if (fabs(cpu_core_usage[i] - last_cpu_core_usage[i]) > 0.5f) {
+            cpu_changed = true;
+            last_cpu_core_usage[i] = cpu_core_usage[i];
+        }
+    }
+    
+    if (cpu_temp != last_cpu_temp) {
+        cpu_changed = true;
+        last_cpu_temp = cpu_temp;
+    }
+    
+    if (cpu_changed) {
+        data_changed = true;
+    }
 }
 
 // 初始化数据管理器
@@ -247,26 +303,66 @@ void data_manager_init(const char *path) {
     _read_cpu_data();
 }
 
-// 改进当前的轮询式数据收集
+// 动画开始时调用此函数 
+void data_manager_set_anim_state(bool is_animating) {
+    anim_in_progress = is_animating;
+}
+
+// 改进当前的轮询式数据收集 - 实现智能更新策略
 void data_manager_update(void) {
     static uint32_t last_storage_time = 0;
     static uint32_t last_cpu_time = 0;
+    static uint32_t last_memory_time = 0;
     uint32_t current_time = lv_tick_get();
     
-    // 始终更新内存数据
-    _read_memory_data();
+    // 重置变化标志
+    data_changed = false;
     
-    // 每500ms更新CPU数据
-    if(current_time - last_cpu_time > 500) {
+    // 如果正在动画，减少更新频率但不要完全停止更新
+    if (anim_in_progress) {
+        // 每1000ms更新所有数据，确保动画后有正确数据
+        if (current_time - last_storage_time > 1000) {
+            _read_storage_data();
+            last_storage_time = current_time;
+        }
+        
+        if (current_time - last_memory_time > 1000) {
+            _read_memory_data();
+            last_memory_time = current_time;
+        }
+        
+        if (current_time - last_cpu_time > 1000) {
+            _read_cpu_data();
+            last_cpu_time = current_time;
+        }
+        
+        // 强制设置数据变化标志，确保UI更新
+        data_changed = true;
+        return;
+    }
+    
+    // 内存数据更新 - 500ms
+    if (current_time - last_memory_time > 500) {
+        _read_memory_data();
+        last_memory_time = current_time;
+    }
+    
+    // CPU数据更新 - 750ms
+    if (current_time - last_cpu_time > 750) {
         _read_cpu_data();
         last_cpu_time = current_time;
     }
     
-    // 每2000ms更新存储数据
-    if(current_time - last_storage_time > 2000) {
+    // 存储数据更新 - 2000ms (降低到2秒以提高响应性)
+    if (current_time - last_storage_time > 2000) {
         _read_storage_data();
         last_storage_time = current_time;
     }
+}
+
+// 新增函数：检查数据是否有变化
+bool data_manager_has_changes(void) {
+    return data_changed;
 }
 
 // 获取存储数据
@@ -299,6 +395,8 @@ void data_manager_get_cpu(float *usage, uint8_t *temp) {
 void data_manager_get_cpu_core(uint8_t core_idx, float *usage) {
     if (usage && core_idx < CPU_CORES) {
         *usage = cpu_core_usage[core_idx];
+        // 确保至少有最小值，避免UI显示为空
+        if (*usage < 1.0f) *usage = 1.0f;
     }
 }
 

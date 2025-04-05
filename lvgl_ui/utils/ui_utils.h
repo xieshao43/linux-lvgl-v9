@@ -29,4 +29,7 @@ void ui_utils_animate_arc(lv_obj_t *arc, int32_t start_value, int32_t end_value,
  */
 void ui_utils_animate_bar(lv_obj_t *bar, int32_t start_value, int32_t end_value, uint16_t time_ms);
 
+// 添加自定义弹性动画路径函数声明
+int32_t ui_utils_anim_path_overshoot(const lv_anim_t * a);
+
 #endif // UI_UTILS_H
