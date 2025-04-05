@@ -1,0 +1,30 @@
+lvgl/CMakeFiles/lvgl.dir/src/drivers/evdev/lv_evdev.c.o: \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/lv_evdev.c \
+ /usr/include/stdc-predef.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/lv_evdev.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/lv_indev.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../core/lv_group.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../core/../lv_conf_internal.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../core/../lv_conf_kconfig.h \
+ /quark_lvgl_9.0/lv_conf.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/5/include/stdint.h \
+ /usr/include/stdint.h /usr/include/features.h \
+ /usr/include/arm-linux-gnueabihf/sys/cdefs.h \
+ /usr/include/arm-linux-gnueabihf/bits/wordsize.h \
+ /usr/include/arm-linux-gnueabihf/gnu/stubs.h \
+ /usr/include/arm-linux-gnueabihf/gnu/stubs-hard.h \
+ /usr/include/arm-linux-gnueabihf/bits/wchar.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/5/include/stdbool.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../core/../misc/lv_types.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../core/../misc/../lv_conf_internal.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../core/../misc/lv_ll.h \
+ /usr/lib/gcc/arm-linux-gnueabihf/5/include/stddef.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/lv_area.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/../lv_conf_internal.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/lv_types.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/lv_timer.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/../tick/lv_tick.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/../tick/../lv_conf_internal.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/lv_ll.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/lv_event.h \
+ /quark_lvgl_9.0/lvgl/src/drivers/evdev/../../indev/../misc/lv_array.h

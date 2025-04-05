@@ -16,11 +16,6 @@ int main(void)
     /*Create a Demo*/
     storage_monitor_init("/");
 
-    // 在合适的位置(如主函数)添加
-    printf("[DEBUG] 注册CPU UI模块\n");
-    ui_manager_register_module(cpu_ui_get_module());
-    printf("[DEBUG] 注册完成，设置初始模块\n");
-    ui_manager_show_module(0); // 显示第一个模块
 
     // lv_demo_stress();
     // lv_demo_music();
