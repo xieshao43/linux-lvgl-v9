@@ -1,12 +1,14 @@
 # linux_lvgl_V9.0
 
-Install steps:
+#Install steps:
 
-  mkdir build and cd build
-  cmake ..
-  make -j
-  cd /linux-lvgl-v9/bin
-  ./main
+   mkdir build and cd build
+   cmake ..
+   make -j
+   cd /linux-lvgl-v9/bin
+   ./main
+
+
 
 #linux board need lowest:
 
