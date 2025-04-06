@@ -15,6 +15,19 @@ typedef struct {
     lv_obj_t *memory_info_label;    // 内存详情标签
 } storage_ui_data_t;
 
+// 添加这些缺失的类型定义
+typedef struct {
+    uint64_t used;
+    uint64_t total;
+    uint8_t percent;
+} storage_data_t;
+
+typedef struct {
+    uint64_t used;
+    uint64_t total;
+    uint8_t percent;
+} memory_data_t;
+
 static storage_ui_data_t ui_data;
 static ui_module_t storage_module;
 
@@ -28,7 +41,10 @@ static struct {
     uint64_t storage_total;
     uint64_t memory_used;
     uint64_t memory_total;
-} ui_cache;
+    bool first_update;        // 添加缺失的成员
+} ui_cache = {
+    .first_update = true      // 初始化为true
+};
 
 // 新增的静态动画控制变量
 static lv_timer_t *spin_timer = NULL;
@@ -43,6 +59,10 @@ static void _update_ui(void);
 static void _show_ui(void);
 static void _hide_ui(void);
 static void _delete_ui(void);
+
+// 添加这些函数的前向声明，解决隐式声明问题
+static bool _needs_update(void);
+static void _batch_fetch_all_data(storage_data_t *storage_data, memory_data_t *memory_data);
 
 // 新增：spinner旋转动画回调
 static void storage_spinner_animation_cb(lv_timer_t *timer) {
@@ -354,95 +374,59 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_add_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
 }
 
-// 更新UI数据 - 智能缓存版
+// 苹果风格的性能优化 - 主线程阻塞时间极短
 static void _update_ui(void) {
-    uint8_t storage_percent, memory_percent;
-    uint64_t storage_used, storage_total;
-    uint64_t memory_used, memory_total;
-    bool storage_changed = false;
-    bool memory_changed = false;
-    
-    // 获取存储数据
-    data_manager_get_storage(&storage_used, &storage_total, &storage_percent);
-    
-    // 检查存储数据是否变化 - 添加首次更新检查
-    static bool first_update = true;
-    if (first_update || 
-        storage_percent != ui_cache.storage_percent || 
-        storage_used != ui_cache.storage_used ||
-        storage_total != ui_cache.storage_total) {
-        
-        // 更新缓存
-        ui_cache.storage_percent = storage_percent;
-        ui_cache.storage_used = storage_used;
-        ui_cache.storage_total = storage_total;
-        storage_changed = true;
-        
-        // 转换为可读格式 - 重用缓存字符串
-        ui_utils_size_to_str(storage_used, ui_cache.used_str, sizeof(ui_cache.used_str));
-        ui_utils_size_to_str(storage_total, ui_cache.total_str, sizeof(ui_cache.total_str));
-        
-        // 输出调试信息，帮助诊断问题
-        //printf("存储更新: %d%%, %s/%s\n", storage_percent, ui_cache.used_str, ui_cache.total_str);
-        
-        // 更新存储UI - 使用优化的动画控制逻辑
-        int32_t current = lv_arc_get_value(ui_data.storage_arc);
-        if (abs(current - storage_percent) > 2) {
-            ui_utils_animate_arc(ui_data.storage_arc, current, storage_percent, 800);
-        } else {
-            lv_arc_set_value(ui_data.storage_arc, storage_percent);
-        }
-        
-        // 更新标签
-        lv_label_set_text_fmt(ui_data.percent_label, "%d%%", storage_percent);
-        lv_label_set_text_fmt(ui_data.info_label, "%s / %s", ui_cache.used_str, ui_cache.total_str);
+    // 预先检查是否需要更新，避免不必要的UI刷新
+    if (!_needs_update() && !ui_cache.first_update) {
+        return; // 跳过不必要的更新
     }
     
-    // 获取内存数据
-    data_manager_get_memory(&memory_used, &memory_total, &memory_percent);
+    // 批量获取所有数据，减少函数调用开销
+    storage_data_t storage_data;
+    memory_data_t memory_data;
+    _batch_fetch_all_data(&storage_data, &memory_data);
     
-    // 检查内存数据是否变化 - 添加首次更新检查
-    if (first_update || 
-        memory_percent != ui_cache.memory_percent ||
-        memory_used != ui_cache.memory_used ||
-        memory_total != ui_cache.memory_total) {
-        
-        // 更新缓存
-        ui_cache.memory_percent = memory_percent;
-        ui_cache.memory_used = memory_used;
-        ui_cache.memory_total = memory_total;
-        memory_changed = true;
-        
-        // 转换为可读格式 - 重用缓存字符串
-        ui_utils_size_to_str(memory_used, ui_cache.used_str, sizeof(ui_cache.used_str));
-        ui_utils_size_to_str(memory_total, ui_cache.total_str, sizeof(ui_cache.total_str));
-        
-        // 输出调试信息，帮助诊断问题
-        //printf("内存更新: %d%%, %s/%s\n", memory_percent, ui_cache.used_str, ui_cache.total_str);
-        
-        // 更新内存UI - 使用优化的动画控制逻辑
-        int32_t current = lv_arc_get_value(ui_data.memory_arc);
-        if (abs(current - memory_percent) > 2) {
-            ui_utils_animate_arc(ui_data.memory_arc, current, memory_percent, 800);
-        } else {
-            lv_arc_set_value(ui_data.memory_arc, memory_percent);
-        }
-        
-        // 更新标签
-        lv_label_set_text_fmt(ui_data.memory_percent_label, "%d%%", memory_percent);
-        lv_label_set_text_fmt(ui_data.memory_info_label, "%s / %s", ui_cache.used_str, ui_cache.total_str);
-    }
+    // 更新存储进度条和标签
+    lv_arc_set_value(ui_data.storage_arc, storage_data.percent);
+    lv_label_set_text_fmt(ui_data.percent_label, "%d%%", storage_data.percent);
+    
+    // 更新存储信息标签
+    ui_utils_size_to_str(storage_data.used, ui_cache.used_str, sizeof(ui_cache.used_str));
+    ui_utils_size_to_str(storage_data.total, ui_cache.total_str, sizeof(ui_cache.total_str));
+    lv_label_set_text_fmt(ui_data.info_label, "%s / %s", ui_cache.used_str, ui_cache.total_str);
+    
+    // 更新内存进度条和标签
+    lv_arc_set_value(ui_data.memory_arc, memory_data.percent);
+    lv_label_set_text_fmt(ui_data.memory_percent_label, "%d%%", memory_data.percent);
+    
+    // 更新内存信息标签
+    ui_utils_size_to_str(memory_data.used, ui_cache.used_str, sizeof(ui_cache.used_str));
+    ui_utils_size_to_str(memory_data.total, ui_cache.total_str, sizeof(ui_cache.total_str));
+    lv_label_set_text_fmt(ui_data.memory_info_label, "%s / %s", ui_cache.used_str, ui_cache.total_str);
+    
+    // 更新缓存状态
+    ui_cache.storage_percent = storage_data.percent;
+    ui_cache.storage_used = storage_data.used;
+    ui_cache.storage_total = storage_data.total;
+    ui_cache.memory_percent = memory_data.percent;
+    ui_cache.memory_used = memory_data.used;
+    ui_cache.memory_total = memory_data.total;
     
     // 重置首次更新标志
-    first_update = false;
-    
-    if (active_progress_mode) {
-        // 在激活模式下，只需更新缓存中的值，动画回调将使用它们
-        // ...existing code for updating ui_cache values...
-    } else {
-        // 非激活模式使用原有逻辑
-        // ...existing code for non-active mode...
-    }
+    ui_cache.first_update = false;
+}
+
+// 检查是否需要更新UI的实现
+static bool _needs_update(void) {
+    // 检查是否需要更新UI
+    return data_manager_has_changes();
+}
+
+// 批量获取数据的实现
+static void _batch_fetch_all_data(storage_data_t *storage_data, memory_data_t *memory_data) {
+    // 批量获取各种数据
+    data_manager_get_storage(&storage_data->used, &storage_data->total, &storage_data->percent);
+    data_manager_get_memory(&memory_data->used, &memory_data->total, &memory_data->percent);
 }
 
 // 显示UI - 添加苹果风格的交错进入动画

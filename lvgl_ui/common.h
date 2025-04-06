@@ -5,8 +5,8 @@
 
 /* 页面管理定义 */
 #define PAGE_COUNT 2
-#define PAGE_SWITCH_INTERVAL 9000  // 9秒，更符合人的注意力周期
-#define UPDATE_INTERVAL 300        // 更新间隔，毫秒
+#define PAGE_SWITCH_INTERVAL 15000  // 9秒，更符合人的注意力周期
+#define UPDATE_INTERVAL 500        // 更新间隔，毫秒
 
 /* 动画过渡类型定义 */
 typedef enum {
@@ -72,5 +72,18 @@ typedef struct {
 #define UI_THROTTLE_UPDATES    1     // 节流更新频率
 #define UI_USE_BATCH_UPDATES   1     // 使用批量更新
 #define UI_ADAPTIVE_QUALITY    1     // 自适应质量控制
+
+// Allwinner H3特定优化
+#define H3_OPTIMIZE_IO         1     // 针对H3的IO优化
+#define H3_LOW_MEMORY_MODE     1     // 针对512MB内存的优化
+#define H3_CPU_TEMP_CONTROL    1     // H3温度控制优化
+#define H3_GPIO_OPT_PATH       1     // 优化GPIO路径访问
+#define H3_DISPLAY_OPTIMIZE    1     // ST7789vw显示优化
+
+// 低功耗模式配置
+#define LOW_POWER_UPDATE_MS    1000  // 低功耗模式下更新间隔
+#define NORMAL_UPDATE_MS       250   // 正常模式下更新间隔
+#define TEMP_WARNING_THRESHOLD 70    // 温度警告阈值(℃)
+#define MEM_PRESSURE_THRESHOLD 80    // 内存压力阈值(%)
 
 #endif // LV_UI_COMMON_H

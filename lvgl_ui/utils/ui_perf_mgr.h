@@ -59,4 +59,18 @@ void ui_perf_mgr_update_end(void);
  */
 float ui_perf_mgr_get_fps(void);
 
+/**
+ * 设置系统负载信息，供自适应优化使用
+ * @param cpu_load CPU负载百分比
+ * @param memory_pressure 内存压力百分比
+ * @param cpu_temp CPU温度(℃)
+ */
+void ui_perf_mgr_set_system_load(uint8_t cpu_load, uint8_t memory_pressure, uint8_t cpu_temp);
+
+/**
+ * 检查是否处于低功耗模式
+ * @return 是否处于低功耗模式
+ */
+bool ui_perf_mgr_is_low_power_mode(void);
+
 #endif // UI_PERF_MGR_H

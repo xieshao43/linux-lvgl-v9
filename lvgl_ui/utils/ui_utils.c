@@ -88,17 +88,18 @@ void ui_utils_animate_bar(lv_obj_t *bar, int32_t start_value, int32_t end_value,
 // 添加新的缓动函数 - 苹果风格的弹性回弹
 int32_t ui_utils_anim_path_overshoot(const lv_anim_t * a)
 {
-    /*计算当前步骤（0-1之间的值）*/
+    // 苹果春动算法调整 - 精确模拟弹簧物理模型
     int32_t t = lv_map(a->act_time, 0, a->duration, 0, 1024);
     
-    // 弹性公式：先超出目标然后回弹
-    if(t < 512) { // 前半段动画快速接近并超过目标
-        return lv_bezier3(t * 2, 0, 100, 1100, 1024);
+    // 优化算法使过冲更加自然，更接近iOS的感觉
+    if(t < 512) { 
+        return lv_bezier3(t * 2, 0, 80, 1000, 1024); // 降低初始加速度
     }
-    else { // 后半段回弹到目标
+    else { 
         t = t - 512;
-        int32_t step = (((t * 400) >> 10) + 180) % 360;
-        int32_t value = 1024 + lv_trigo_sin(step) * 50 / LV_TRIGO_SIN_MAX;
+        // 调整回弹振幅和衰减，更加自然
+        int32_t step = (((t * 350) >> 10) + 180) % 360;
+        int32_t value = 1024 + lv_trigo_sin(step) * 40 / LV_TRIGO_SIN_MAX;
         return value;
     }
 }

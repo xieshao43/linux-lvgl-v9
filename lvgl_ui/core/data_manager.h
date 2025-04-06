@@ -16,6 +16,11 @@ void data_manager_init(const char *path);
 void data_manager_update(void);
 
 /**
+ * 检查数据是否有变化
+ */
+bool data_manager_has_changes(void);
+
+/**
  * 获取存储数据
  * @param used 已用空间(KB)
  * @param total 总空间(KB)

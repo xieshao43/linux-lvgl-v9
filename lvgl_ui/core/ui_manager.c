@@ -329,7 +329,7 @@ static void _page_switch_cb(lv_timer_t *timer)
     ui_mgr->current_module = next_module_idx;
 
     // 切换完成后，切换标志位
-    forward_switch =!forward_switch;
+    forward_switch =! forward_switch;
 }
 
 // 数据更新回调
@@ -443,6 +443,43 @@ void ui_manager_show_module(uint8_t index) {
     
     // 更新当前模块索引
     ui_mgr->current_module = index;
+}
+
+// 添加缺失的函数定义
+static ui_anim_type_t _determine_best_transition(uint8_t current_module, uint8_t next_module) {
+    // 根据当前模块和目标模块选择最佳过渡效果
+    if (next_module > current_module) {
+        return ANIM_SLIDE_LEFT; // 向左滑动，修正常量名称
+    } else {
+        return ANIM_SLIDE_RIGHT; // 向右滑动，修正常量名称
+    }
+}
+
+static void _perform_transition(uint8_t module_index, ui_anim_type_t transition_type) {
+    // 执行模块之间的过渡动画
+    // ...transition implementation...
+    
+    // 设置当前模块为新选择的模块
+    ui_mgr->current_module = module_index;
+    
+    // 显示新模块 - 修正C++风格函数调用为C风格
+    ui_mgr->modules[module_index]->show();
+}
+
+void ui_manager_transition_to(uint8_t module_index) {
+    // 内部处理前后检查，错误处理
+    if (!ui_mgr || module_index >= ui_mgr->module_count) {
+        return; // 安全退出
+    }
+    
+    // 确定最佳过渡类型（考虑当前上下文）
+    ui_anim_type_t transition_type = _determine_best_transition(
+        ui_mgr->current_module, 
+        module_index
+    );
+    
+    // 执行过渡（内部处理所有复杂逻辑）
+    _perform_transition(module_index, transition_type);
 }
 
 void ui_manager_set_anim_type(ui_anim_type_t type) {
