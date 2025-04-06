@@ -1,17 +1,16 @@
 #include "ui_utils.h"
 #include <stdio.h>
 
-
+// 添加正确的函数声明
+static void _ui_utils_hide_arcs_show_bars_cb(lv_timer_t *timer);
+static void _ui_utils_progress_bars_fade_out_cb(lv_timer_t *timer);
+static void _ui_utils_fade_out_animation_cb(lv_timer_t *timer);
+static void _ui_utils_cleanup_animation_cb(lv_timer_t *timer);
 static void _ui_utils_hide_bars_show_arcs_cb(lv_timer_t *timer);
-
-// 添加这些函数声明到文件顶部
-static void _ui_utils_hide_arcs_show_bars_cb(lv_timer_t *timer);
-static void _ui_utils_cleanup_animation_cb(lv_timer_t *timer);
-static void _ui_utils_hide_arcs_show_bars_cb(lv_timer_t *timer);
-static void _ui_utils_cleanup_animation_cb(lv_timer_t *timer);
+static void _ui_utils_show_arcs_fill_cb(lv_timer_t *timer);
 static void _ui_anim_opacity_cb(void *obj, int32_t value);
 static void _ui_anim_width_cb(void *obj, int32_t value);
-static void _ui_utils_show_arcs_fill_cb(lv_timer_t *timer);
+static void _ui_anim_delete_on_complete(lv_anim_t *a);
 
 // 将KB大小转换为可读字符串 - 改编自原有get_size_str函数
 void ui_utils_size_to_str(uint64_t size_kb, char *buf, int buf_size) {
@@ -187,14 +186,23 @@ void ui_utils_create_transition_animation(void)
         lv_obj_set_style_radius(bars[i], bar_height / 2, 0);
     }
     
+    // 创建CPU MONITOR标题 - 初始隐藏
+    lv_obj_t *title_label = lv_label_create(panel);
+    lv_obj_set_style_text_font(title_label, &lv_font_montserrat_16, 0);  // 使用中等大小字体
+    lv_obj_set_style_text_color(title_label, lv_color_hex(0xF9FAFB), 0); // 近白色文本
+    lv_label_set_text(title_label, "CPU MONITOR");
+    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, -5);
+    lv_obj_set_style_opa(title_label, LV_OPA_TRANSP, 0);  // 初始设为完全透明
+    
     // 为存储对象指针创建数组
-    static lv_obj_t *objects[7];
+    static lv_obj_t *objects[8]; // 增加一个位置存储标题
     objects[0] = panel;
     objects[1] = arc_mem;
     objects[2] = arc_storage;
     for(int i = 0; i < 4; i++) {
         objects[i+3] = bars[i];
     }
+    objects[7] = title_label;  // 存储标题标签
     
     // 动画1: 圆弧进度条从满状态回退动画
     lv_anim_t a1;
@@ -228,6 +236,7 @@ void ui_utils_create_transition_animation(void)
 // 修改回调函数以适应新的对象结构
 static void _ui_utils_hide_arcs_show_bars_cb(lv_timer_t *timer) {
     lv_obj_t **objs = (lv_obj_t **)timer->user_data;
+    lv_obj_t *title_label = objs[7];  // 获取标题标签
     
     // 为圆弧添加淡出动画而不是直接隐藏
     for (int i = 1; i <= 2; i++) {
@@ -240,6 +249,17 @@ static void _ui_utils_hide_arcs_show_bars_cb(lv_timer_t *timer) {
         lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
         lv_anim_start(&a);
     }
+    
+    // 标题标签淡入动画 - 苹果风格的流畅出现
+    lv_anim_t a_title;
+    lv_anim_init(&a_title);
+    lv_anim_set_var(&a_title, title_label);
+    lv_anim_set_values(&a_title, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_exec_cb(&a_title, (lv_anim_exec_xcb_t)_ui_anim_opacity_cb);
+    lv_anim_set_time(&a_title, 600);  // 稍微慢一点的淡入效果更优雅
+    lv_anim_set_delay(&a_title, 150); // 在进度条显示前稍微提前出现
+    lv_anim_set_path_cb(&a_title, lv_anim_path_ease_out);
+    lv_anim_start(&a_title);
     
     // 依次显示进度条并添加动画效果
     for(int i = 0; i < 4; i++) {
@@ -282,10 +302,47 @@ static void _ui_utils_hide_arcs_show_bars_cb(lv_timer_t *timer) {
         lv_anim_start(&a_value);
     }
     
+    // 设置延时定时器，在进度条动画完成后淡出所有元素
+    lv_timer_t *fade_out_timer = lv_timer_create(
+        (lv_timer_cb_t)_ui_utils_progress_bars_fade_out_cb,
+        1600,  // 给进度条足够时间显示
+        objs
+    );
+    lv_timer_set_repeat_count(fade_out_timer, 1);
+}
+
+// 添加新的回调函数，实现水平进度条的渐出效果
+static void _ui_utils_progress_bars_fade_out_cb(lv_timer_t *timer) {
+    lv_obj_t **objs = (lv_obj_t **)timer->user_data;
+    lv_obj_t *title_label = objs[7];  // 获取标题标签
+    
+    // 标题标签淡出动画
+    lv_anim_t a_title;
+    lv_anim_init(&a_title);
+    lv_anim_set_var(&a_title, title_label);
+    lv_anim_set_values(&a_title, LV_OPA_COVER, LV_OPA_TRANSP);
+    lv_anim_set_exec_cb(&a_title, (lv_anim_exec_xcb_t)_ui_anim_opacity_cb);
+    lv_anim_set_time(&a_title, 400);  
+    lv_anim_set_path_cb(&a_title, lv_anim_path_ease_in);
+    lv_anim_start(&a_title);
+    
+    // 进度条依次淡出，实现层叠淡出效果
+    for(int i = 0; i < 4; i++) {
+        lv_anim_t a;
+        lv_anim_init(&a);
+        lv_anim_set_var(&a, objs[i+3]);
+        lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
+        lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)_ui_anim_opacity_cb);
+        lv_anim_set_time(&a, 300);
+        lv_anim_set_delay(&a, i * 50);  // 交错延迟创造波浪效果
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+        lv_anim_start(&a);
+    }
+    
     // 最后清理动画的定时器
     lv_timer_t *cleanup_timer = lv_timer_create(
-        (lv_timer_cb_t)_ui_utils_cleanup_animation_cb, 
-        1800, 
+        (lv_timer_cb_t)_ui_utils_fade_out_animation_cb, 
+        600,  // 给淡出效果足够时间
         objs
     );
     lv_timer_set_repeat_count(cleanup_timer, 1);
@@ -490,11 +547,36 @@ static void _ui_utils_show_arcs_fill_cb(lv_timer_t *timer) {
         lv_anim_start(&a_value);
     }
     
-    // 清理动画
+    // 清理动画 - 改为淡出后再清理
     lv_timer_t *cleanup_timer = lv_timer_create(
-        (lv_timer_cb_t)_ui_utils_cleanup_animation_cb, 
+        (lv_timer_cb_t)_ui_utils_fade_out_animation_cb, 
         1800, 
         objs
     );
     lv_timer_set_repeat_count(cleanup_timer, 1);
+}
+
+// 渐变淡出整个面板再清理的函数
+static void _ui_utils_fade_out_animation_cb(lv_timer_t *timer) {
+    lv_obj_t **objs = (lv_obj_t **)timer->user_data;
+    lv_obj_t *panel = objs[0];
+    
+    // 创建整体面板的淡出动画
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, panel);
+    lv_anim_set_values(&a, LV_OPA_COVER, LV_OPA_TRANSP);
+    lv_anim_set_time(&a, 500);  // 0.5秒淡出时间
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)_ui_anim_opacity_cb);
+    
+    // 添加动画结束回调来删除对象
+    lv_anim_set_completed_cb(&a, _ui_anim_delete_on_complete);
+    
+    lv_anim_start(&a);
+}
+
+// 动画完成时删除对象的回调
+static void _ui_anim_delete_on_complete(lv_anim_t *a) {
+    lv_obj_delete((lv_obj_t *)a->var);
 }

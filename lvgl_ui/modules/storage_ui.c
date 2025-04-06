@@ -30,12 +30,168 @@ static struct {
     uint64_t memory_total;
 } ui_cache;
 
+// 新增的静态动画控制变量
+static lv_timer_t *spin_timer = NULL;
+static lv_timer_t *active_arc_timer = NULL;  // 新增：激活状态进度条动画定时器
+static int32_t current_spin_angle = 0;
+static bool spin_animation_active = false;
+static bool active_progress_mode = false;  // 新增：激活状态进度条模式标志
+
 // 私有函数原型
 static void _create_ui(lv_obj_t *parent);
 static void _update_ui(void);
 static void _show_ui(void);
 static void _hide_ui(void);
 static void _delete_ui(void);
+
+// 新增：spinner旋转动画回调
+static void storage_spinner_animation_cb(lv_timer_t *timer) {
+    // 获取当前值和目标值
+    int32_t storage_current = lv_arc_get_value(ui_data.storage_arc);
+    int32_t memory_current = lv_arc_get_value(ui_data.memory_arc);
+    
+    // 旋转角度增量 - 创造平滑的spinner效果
+    current_spin_angle = (current_spin_angle + 3) % 360;
+    
+    // 存储圆弧从当前角度开始，扫过一定角度
+    int32_t end_angle = current_spin_angle + 90; // 扫过90度的弧
+    if (end_angle > 360) end_angle -= 360;
+    
+    // 设置存储圆弧
+    lv_arc_set_start_angle(ui_data.storage_arc, current_spin_angle);
+    lv_arc_set_end_angle(ui_data.storage_arc, end_angle);
+    
+    // 内存圆弧与存储圆弧相位差180度
+    int32_t mem_start = (current_spin_angle + 180) % 360;
+    int32_t mem_end = (mem_start + 90) % 360;
+    if (mem_end < mem_start) mem_end += 360;
+    
+    // 设置内存圆弧
+    lv_arc_set_start_angle(ui_data.memory_arc, mem_start);
+    lv_arc_set_end_angle(ui_data.memory_arc, mem_end);
+}
+
+// 新增：激活状态进度条的动画回调 - 完全重写为流动效果
+static void active_arc_animation_cb(lv_timer_t *timer) {
+    // 获取当前真实进度值
+    int32_t storage_value = ui_cache.storage_percent;
+    int32_t memory_value = ui_cache.memory_percent;
+    
+    // 计算用于动画的角度
+    current_spin_angle = (current_spin_angle + 3) % 360;
+    
+    // 计算存储和内存圆弧的角度
+    int32_t storage_angle = (storage_value * 360) / 100;
+    int32_t memory_angle = (memory_value * 360) / 100;
+    
+    // 创建围绕圆弧流动的效果 - 利用基准角度旋转整个进度条
+    int32_t base_angle = current_spin_angle;
+    
+    // 存储进度条 - 起始角度随着基准角度旋转，但保持相同的弧长
+    int32_t storage_start_angle = base_angle;
+    int32_t storage_end_angle = (base_angle + storage_angle) % 360;
+    
+    lv_arc_set_angles(ui_data.storage_arc, storage_start_angle, storage_end_angle);
+    
+    // 内存进度条 - 相对存储进度条有180度偏移，制造交错效果
+    int32_t memory_start_angle = (base_angle + 180) % 360;
+    int32_t memory_end_angle = (memory_start_angle + memory_angle) % 360;
+    
+    lv_arc_set_angles(ui_data.memory_arc, memory_start_angle, memory_end_angle);
+}
+
+// 启动苹果风格spinner动画
+static void start_spinner_animation() {
+    if (!spin_animation_active) {
+        // 设置圆弧的初始和结束角度
+        lv_arc_set_bg_angles(ui_data.storage_arc, 0, 360);
+        lv_arc_set_bg_angles(ui_data.memory_arc, 0, 360);
+        
+        // 重要：设置为旋转模式，让spinner正确显示
+        lv_arc_set_mode(ui_data.storage_arc, LV_ARC_MODE_REVERSE);
+        lv_arc_set_mode(ui_data.memory_arc, LV_ARC_MODE_REVERSE);
+        
+        // 初始化并启动动画定时器
+        if (spin_timer == NULL) {
+            spin_timer = lv_timer_create(storage_spinner_animation_cb, 16, NULL); // 约60FPS
+        } else {
+            lv_timer_resume(spin_timer);
+        }
+        
+        spin_animation_active = true;
+    }
+}
+
+// 修改：启动激活状态进度条模式
+static void start_active_progress_animation() {
+    if (!active_progress_mode) {
+        // 设置圆弧为反向模式，让我们可以完全控制角度
+        lv_arc_set_mode(ui_data.storage_arc, LV_ARC_MODE_REVERSE);
+        lv_arc_set_mode(ui_data.memory_arc, LV_ARC_MODE_REVERSE);
+        
+        // 确保背景弧完整显示
+        lv_arc_set_bg_angles(ui_data.storage_arc, 0, 360);
+        lv_arc_set_bg_angles(ui_data.memory_arc, 0, 360);
+        
+        // 初始化并启动流动动画定时器，增加帧率使动画更流畅
+        if (active_arc_timer == NULL) {
+            active_arc_timer = lv_timer_create(active_arc_animation_cb, 16, NULL); // 约60FPS，更流畅
+        } else {
+            lv_timer_resume(active_arc_timer);
+        }
+        
+        active_progress_mode = true;
+        spin_animation_active = false;
+    }
+}
+
+// 修改：停止spinner动画，转换到激活状态进度条模式
+static void stop_spinner_animation() {
+    if (spin_animation_active) {
+        // 暂停spinner动画定时器
+        if (spin_timer) {
+            lv_timer_pause(spin_timer);
+        }
+        
+        // 存储当前进度信息到缓存
+        ui_cache.storage_percent = ui_cache.storage_percent;
+        ui_cache.memory_percent = ui_cache.memory_percent;
+        
+        // 切换到激活状态进度条模式
+        start_active_progress_animation();
+    }
+}
+
+// 停止所有动画效果
+static void stop_all_animations() {
+    // 停止spinner动画
+    if (spin_timer) {
+        lv_timer_pause(spin_timer);
+    }
+    
+    // 停止激活状态进度条动画
+    if (active_arc_timer) {
+        lv_timer_pause(active_arc_timer);
+    }
+    
+    // 重置模式和角度
+    spin_animation_active = false;
+    active_progress_mode = false;
+    
+    // 恢复为正常进度条模式
+    lv_arc_set_mode(ui_data.storage_arc, LV_ARC_MODE_NORMAL);
+    lv_arc_set_mode(ui_data.memory_arc, LV_ARC_MODE_NORMAL);
+    
+    // 重置线宽到默认值
+    lv_obj_set_style_arc_width(ui_data.storage_arc, 6, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(ui_data.memory_arc, 6, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(ui_data.storage_arc, 8, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(ui_data.memory_arc, 8, LV_PART_INDICATOR);
+    
+    // 设置正确的进度值
+    lv_arc_set_value(ui_data.storage_arc, ui_cache.storage_percent);
+    lv_arc_set_value(ui_data.memory_arc, ui_cache.memory_percent);
+}
 
 // 模块接口实现
 static void storage_ui_create(lv_obj_t *parent) {
@@ -116,7 +272,7 @@ static void _create_ui(lv_obj_t *parent) {
     uint32_t color_text = 0xECF0F1;      // 柔和的白色
     uint32_t color_text_secondary = 0xBDC3C7; // 银灰色
     
-    // 存储弧形进度条 - 左侧
+    // 存储弧形进度条 - 左侧 - 修改为苹果风格
     ui_data.storage_arc = lv_arc_create(ui_data.panel);
     lv_obj_set_size(ui_data.storage_arc, 75, 75);
     lv_obj_align(ui_data.storage_arc, LV_ALIGN_LEFT_MID, 10, 0);
@@ -124,13 +280,15 @@ static void _create_ui(lv_obj_t *parent) {
     lv_arc_set_bg_angles(ui_data.storage_arc, 0, 360);
     lv_arc_set_range(ui_data.storage_arc, 0, 100);
     lv_arc_set_value(ui_data.storage_arc, 0);
+    lv_arc_set_mode(ui_data.storage_arc, LV_ARC_MODE_NORMAL); // 显式设置为正常模式
     lv_obj_remove_style(ui_data.storage_arc, NULL, LV_PART_KNOB);
-    lv_obj_set_style_arc_width(ui_data.storage_arc, 8, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(ui_data.storage_arc, 6, LV_PART_MAIN); // 使用更细的线条更像苹果风格
     lv_obj_set_style_arc_width(ui_data.storage_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x8DBF9B), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x2C3E50), LV_PART_MAIN); // 更深的背景色
+    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x8DBF9B), LV_PART_INDICATOR); // 鲜
+    lv_obj_set_style_arc_rounded(ui_data.storage_arc, true, LV_PART_INDICATOR); // 苹果风格的圆角指示器
     
-    // 内存弧形进度条 - 右侧
+    // 内存弧形进度条 - 右侧 - 使用单色但鲜艳的颜色
     ui_data.memory_arc = lv_arc_create(ui_data.panel);
     lv_obj_set_size(ui_data.memory_arc, 75, 75);
     lv_obj_align(ui_data.memory_arc, LV_ALIGN_RIGHT_MID, -10, 0);
@@ -138,11 +296,13 @@ static void _create_ui(lv_obj_t *parent) {
     lv_arc_set_bg_angles(ui_data.memory_arc, 0, 360);
     lv_arc_set_range(ui_data.memory_arc, 0, 100);
     lv_arc_set_value(ui_data.memory_arc, 0);
+    lv_arc_set_mode(ui_data.memory_arc, LV_ARC_MODE_NORMAL); // 显式设置为正常模式
     lv_obj_remove_style(ui_data.memory_arc, NULL, LV_PART_KNOB);
-    lv_obj_set_style_arc_width(ui_data.memory_arc, 8, LV_PART_MAIN);
+    lv_obj_set_style_arc_width(ui_data.memory_arc, 6, LV_PART_MAIN); // 使用更细的线条更像苹果风格
     lv_obj_set_style_arc_width(ui_data.memory_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(0x4A5568), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(0x2C3E50), LV_PART_MAIN); // 更深的背景色
+    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR); // 鲜紫色指示器 (Apple风格)
+    lv_obj_set_style_arc_rounded(ui_data.memory_arc, true, LV_PART_INDICATOR); // 圆角效果
     
     // 存储标题
     lv_obj_t *storage_title = lv_label_create(ui_data.panel);
@@ -275,13 +435,21 @@ static void _update_ui(void) {
     
     // 重置首次更新标志
     first_update = false;
+    
+    if (active_progress_mode) {
+        // 在激活模式下，只需更新缓存中的值，动画回调将使用它们
+        // ...existing code for updating ui_cache values...
+    } else {
+        // 非激活模式使用原有逻辑
+        // ...existing code for non-active mode...
+    }
 }
 
 // 显示UI - 添加苹果风格的交错进入动画
 static void _show_ui(void) {
     lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
     
-    // 获取当前实际数据，而不是硬编码为100%
+    // 获取当前实际数据
     uint8_t storage_percent, memory_percent;
     uint64_t storage_used, storage_total;
     uint64_t memory_used, memory_total;
@@ -301,30 +469,6 @@ static void _show_ui(void) {
     // 通知数据管理器动画开始
     data_manager_set_anim_state(true);
     
-    // 创建交错进入动画效果
-    lv_anim_t anim;
-    
-    // 存储环形图动画 - 动画到实际百分比
-    lv_anim_init(&anim);
-    lv_anim_set_var(&anim, ui_data.storage_arc);
-    lv_anim_set_values(&anim, 0, storage_percent); // 使用实际百分比
-    lv_anim_set_time(&anim, 800);
-    lv_anim_set_delay(&anim, 0);
-    lv_anim_set_path_cb(&anim, lv_anim_path_ease_out);
-    lv_anim_set_exec_cb(&anim, (lv_anim_exec_xcb_t)lv_arc_set_value);
-    lv_anim_start(&anim);
-    
-    // 内存环形图动画 - 动画到实际百分比
-    lv_anim_t anim2;
-    lv_anim_init(&anim2);
-    lv_anim_set_var(&anim2, ui_data.memory_arc);
-    lv_anim_set_values(&anim2, 0, memory_percent); // 使用实际百分比
-    lv_anim_set_time(&anim2, 800);
-    lv_anim_set_delay(&anim2, ANIM_STAGGER_DELAY); // 交错延迟
-    lv_anim_set_path_cb(&anim2, lv_anim_path_ease_out);
-    lv_anim_set_exec_cb(&anim2, (lv_anim_exec_xcb_t)lv_arc_set_value);
-    lv_anim_start(&anim2);
-    
     // 更新显示标签
     lv_label_set_text_fmt(ui_data.percent_label, "%d%%", storage_percent);
     ui_utils_size_to_str(storage_used, ui_cache.used_str, sizeof(ui_cache.used_str));
@@ -336,21 +480,24 @@ static void _show_ui(void) {
     ui_utils_size_to_str(memory_total, ui_cache.total_str, sizeof(ui_cache.total_str));
     lv_label_set_text_fmt(ui_data.memory_info_label, "%s / %s", ui_cache.used_str, ui_cache.total_str);
     
-    // 创建结束动画事件的计时器
+    // 先显示spinner效果0.5秒钟，更快切换到流动效果
+    start_spinner_animation();
+    
+    // 0.5秒后停止spinner并切换到激活状态进度条模式
+    lv_timer_t *spinner_to_active_progress_timer = lv_timer_create(
+        (lv_timer_cb_t)stop_spinner_animation, 
+        500, // 0.5秒后切换到激活状态进度条显示
+        NULL
+    );
+    lv_timer_set_repeat_count(spinner_to_active_progress_timer, 1);
+    
+    // 创建结束动画事件的计时器 - 不再需要停止动画，保持激活状态
     lv_timer_t *anim_end_timer = lv_timer_create(
         (lv_timer_cb_t)data_manager_set_anim_state, 
-        900, 
+        1000, // 1秒后结束动画状态
         (void *)false
     );
     lv_timer_set_repeat_count(anim_end_timer, 1);
-    
-    // 添加强制更新定时器，确保数据获取后显示正确
-    lv_timer_t *force_update_timer = lv_timer_create(
-        (lv_timer_cb_t)_update_ui,
-        1000,  // 1秒后强制更新一次
-        NULL
-    );
-    lv_timer_set_repeat_count(force_update_timer, 1);
 }
 
 // 隐藏UI
@@ -358,9 +505,21 @@ static void _hide_ui(void) {
     lv_obj_add_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
 }
 
-// 删除UI
+// 修改：删除UI时清理所有动画资源
 static void _delete_ui(void) {
     if (ui_data.panel) {
+        // 清理spinner定时器
+        if (spin_timer) {
+            lv_timer_delete(spin_timer);
+            spin_timer = NULL;
+        }
+        
+        // 清理激活状态进度条定时器
+        if (active_arc_timer) {
+            lv_timer_delete(active_arc_timer);
+            active_arc_timer = NULL;
+        }
+        
         lv_obj_delete(ui_data.panel);
         ui_data.panel = NULL;
     }
