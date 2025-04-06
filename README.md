@@ -12,9 +12,9 @@
 
 # linux board need lowest:
 
-CPU: Allwinner H3, 四核Cortex-A7 @ 1GHz
-GPU: ARM Mali400 MP2 GPU
-内存: 512MB LPDDR3 RAM
+  #CPU: Allwinner H3, 四核Cortex-A7 @ 1GHz
+  #GPU: ARM Mali400 MP2 GPU
+  #内存: 512MB LPDDR3 RAM
 存储: 16GB eMMC
 接口: 以太网, SPI, I2C, UART, 可复用的GPIO, MIC, LINEOUT
 GPIO: 2.0mm间距26针式接头连接器，包括USB OTG，USB串口，I2C，UART，SPI，I2S，GPIO
