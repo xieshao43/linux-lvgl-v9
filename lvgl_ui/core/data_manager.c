@@ -8,6 +8,7 @@
 #include <math.h>   // 添加math.h头文件，解决fabs函数未声明问题
 #include <fcntl.h>  // 添加fcntl.h，提供O_RDONLY等常量
 #include <unistd.h> // 添加unistd.h，提供read、close函数
+#include <sys/statvfs.h>
 
 // 添加前向声明，解决隐式声明问题
 static bool _try_update_all_data(void);
@@ -236,7 +237,6 @@ fallback_cpu_data:
 // 优化的存储数据读取函数
 static void _read_storage_data(void) {
     // 静态缓存，避免频繁分配内存
-    static char cmd_buffer[256];
     static char result_buffer[1024];
     static uint64_t last_storage_total = 0;
     static uint64_t last_storage_used = 0;
@@ -259,53 +259,30 @@ static void _read_storage_data(void) {
             storage_used = 4 * 1024 * 1024;
         }
         
-        // 使用更直接简单的命令，避免复杂的管道和awk
-        snprintf(cmd_buffer, sizeof(cmd_buffer), "df -k %s", storage_path);
-        
-        FILE *fp = popen(cmd_buffer, "r");
-        if (fp) {
-            // 跳过第一行标题
-            fgets(result_buffer, sizeof(result_buffer), fp);
+        // 替换popen实现为直接系统调用
+        struct statvfs stat;
+        if (statvfs(storage_path, &stat) == 0) {
+            // 获取块大小和数量
+            uint64_t block_size = stat.f_frsize;
+            uint64_t blocks = stat.f_blocks;
+            uint64_t free_blocks = stat.f_bfree;
+            uint64_t avail_blocks = stat.f_bavail; // 普通用户可用
             
-            // 读取结果行
-            if (fgets(result_buffer, sizeof(result_buffer), fp)) {
-                // 更灵活的解析方式 - 支持不同格式的df输出
-                char fs_name[128];
-                uint64_t blocks = 0, used = 0, available = 0;
-                int use_percent = 0;
-                
-                // 尝试标准格式解析
-                int matched = sscanf(result_buffer, "%s %llu %llu %llu %d%%", 
-                                     fs_name, &blocks, &used, &available, &use_percent);
-                
-                if (matched >= 4 && blocks > 0) {
-                    storage_total = blocks;
-                    storage_used = used;
-                    retry_count = 0;  // 重置重试计数
-                    data_changed = true;  // 标记数据已变更
-                } else {
-                    // 尝试备用格式解析（某些系统可能有不同输出格式）
-                    matched = sscanf(result_buffer, "%s %llu %llu %llu", 
-                                     fs_name, &blocks, &used, &available);
-                    
-                    if (matched >= 4 && blocks > 0) {
-                        storage_total = blocks;
-                        storage_used = used;
-                        retry_count = 0;  // 重置重试计数
-                        data_changed = true;  // 标记数据已变更
-                    } else {
-                        // 记录解析失败的调试信息
-                        printf("Failed to parse df output: %s\n", result_buffer);
-                        retry_count++;
-                    }
-                }
-            } else {
-                printf("Failed to read df output\n");
-                retry_count++;
-            }
-            pclose(fp);
+            // 计算总大小和已用大小(KB)
+            storage_total = (blocks * block_size) / 1024;
+            storage_used = ((blocks - avail_blocks) * block_size) / 1024;
+            
+            retry_count = 0;  // 重置重试计数
+            data_changed = true;  // 标记数据已变更
+            
+            #if UI_DEBUG_ENABLED
+            printf("Storage stats: total=%llu KB, used=%llu KB\n", 
+                   storage_total, storage_used);
+            #endif
         } else {
-            printf("Failed to execute df command\n");
+            #if UI_DEBUG_ENABLED
+            printf("Failed to get storage stats for %s\n", storage_path);
+            #endif
             retry_count++;
             
             // 重试3次后使用模拟数据
