@@ -3,7 +3,8 @@
 #include "core/data_manager.h"
 #include "modules/storage_ui.h"
 #include "modules/cpu_ui.h"
-#include "modules/wifi_notification.h" // Add WiFi notification header
+#include "modules/wifi_notification.h" // WiFi通知头文件
+#include "modules/wifi_manager.h"      // 添加WiFi管理器头文件
 #include <stdio.h>
 #include <stdlib.h> 
 
@@ -29,14 +30,12 @@ void storage_monitor_init(const char *path) {
     // 注册CPU模块
     ui_manager_register_module(cpu_ui_get_module());
 
-    // 初始化WiFi通知系统
-    wifi_notification_init();
-
+    // 初始化WiFi管理器（内部会初始化通知系统）
+    wifi_manager_init();
+    
     // 显示第一个模块
     ui_manager_show_module(0);
-    
-    // 可以在这里触发一个WiFi通知作为示例
-    wifi_notification_show(WIFI_STATE_CONNECTED, "Quark 2.4G");
+
 }
 
 /**

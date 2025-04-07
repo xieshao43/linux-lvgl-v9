@@ -14,14 +14,9 @@ int main(void)
     lv_linux_fbdev_set_file(disp, "/dev/fb1"); //Quark's framebuffer is on fb1
 
     /*Create a Demo*/
+
     storage_monitor_init("/");
-
-
-    // lv_demo_stress();
     // lv_demo_music();
-    // lv_demo_benchmark();
-    // lv_demo_widgets();
-    // lv_demo_widgets_start_slideshow();
 
 
     /*Handle LVGL tasks*/

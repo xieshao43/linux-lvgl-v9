@@ -243,7 +243,7 @@ static void _ui_utils_hide_arcs_show_bars_cb(lv_timer_t *timer) {
     lv_obj_t **objs = (lv_obj_t **)timer->user_data;
     lv_obj_t *title_label = objs[7];  // 获取标题标签
     
-    // 为圆弧添加淡出动画而不是直接隐藏
+    // 为圆弧添加淡出动画
     for (int i = 1; i <= 2; i++) {
         lv_anim_t a;
         lv_anim_init(&a);
