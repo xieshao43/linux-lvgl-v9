@@ -279,6 +279,8 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_set_size(ui_data.panel, 235, 130);
     lv_obj_align(ui_data.panel, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_style(ui_data.panel, &panel_style, 0);
+    // 在创建面板后添加
+    lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_SCROLLABLE);
     
     // 字体定义
     const lv_font_t *font_big = &lv_font_montserrat_22;

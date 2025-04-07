@@ -88,8 +88,10 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_set_style_border_width(ui_data.panel, 0, 0);
     lv_obj_set_style_radius(ui_data.panel, 16, 0); // macOS风格圆角
     lv_obj_set_style_pad_all(ui_data.panel, 15, 0);
+    //
+    lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_SCROLLABLE);
     
-    // 添加微妙的渐变
+    // 添加渐变
     lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x1E293B), 0);
     lv_obj_set_style_bg_grad_dir(ui_data.panel, LV_GRAD_DIR_VER, 0);
     
@@ -113,12 +115,12 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_set_size(separator, 210, 1);
     lv_obj_align_to(separator, cpu_title, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
     lv_obj_set_style_bg_color(separator, lv_color_hex(color_accent), 0);
-    lv_obj_set_style_bg_opa(separator, LV_OPA_40, 0); // 半透明更微妙
+    lv_obj_set_style_bg_opa(separator, LV_OPA_40, 0); 
     lv_obj_set_style_border_width(separator, 0, 0);
     lv_obj_set_style_radius(separator, 0, 0);
 
     // 进度条设置
-    int bar_height = 6;        // 更细的进度条，更现代
+    int bar_height = 6;        // 更细的进度条
     int bar_width = 150;       // 进度条宽度
     int vertical_spacing = 22; // 垂直间距
     int start_y = 20;          // 起始位置
@@ -171,6 +173,8 @@ static void _create_ui(lv_obj_t *parent) {
     // 温度显示容器 - 确保在最后一个进度条下方
     lv_obj_t *temp_container = lv_obj_create(ui_data.panel);
     lv_obj_set_size(temp_container, 210, 20); // 合理的高度
+    lv_obj_clear_flag(temp_container, LV_OBJ_FLAG_SCROLLABLE);// 禁用滚动
+    lv_obj_set_scrollbar_mode(temp_container, LV_SCROLLBAR_MODE_OFF);    
     
     // 放置在最后一个进度条下方，预留足够空间
     lv_obj_align(temp_container, LV_ALIGN_TOP_MID, 0, last_bar_bottom + 0); 

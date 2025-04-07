@@ -13,6 +13,7 @@ file(GLOB_RECURSE LVGL_UI_SOURCES
     ${PROJECT_SOURCE_DIR}/lvgl_ui/core/*.c
     ${PROJECT_SOURCE_DIR}/lvgl_ui/modules/*.c
     ${PROJECT_SOURCE_DIR}/lvgl_ui/utils/*.c
+   
 )
 
 # 添加包含目录
@@ -21,6 +22,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/lvgl_ui/core
     ${PROJECT_SOURCE_DIR}/lvgl_ui/modules
     ${PROJECT_SOURCE_DIR}/lvgl_ui/utils
+    
 )
 
 add_subdirectory(lvgl)
