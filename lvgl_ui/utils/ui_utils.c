@@ -117,7 +117,7 @@ void ui_utils_create_transition_animation(void)
     lv_obj_t *panel = lv_obj_create(parent);
     lv_obj_set_size(panel, 235, 130);
     lv_obj_align(panel, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(panel, lv_color_hex(COLOR_PANEL_DARK), 0);
+    lv_obj_set_style_bg_color(panel, lv_color_hex(0x1E293B), 0); // 深靛蓝面板色
     lv_obj_set_style_radius(panel, 16, 0);
     lv_obj_set_style_border_width(panel, 0, 0);
     lv_obj_set_style_pad_all(panel, 10, 0);
@@ -133,8 +133,8 @@ void ui_utils_create_transition_animation(void)
     lv_obj_remove_style(arc_mem, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(arc_mem, 8, LV_PART_MAIN);
     lv_obj_set_style_arc_width(arc_mem, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(arc_mem, lv_color_hex(0x8DBF9B), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(arc_mem, lv_color_hex(0x4A5568), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc_mem, lv_color_hex(0x0F172A), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc_mem, lv_color_hex(0x8B5CF6), LV_PART_INDICATOR); // 紫色指示器
     lv_obj_set_style_arc_rounded(arc_mem, true, LV_PART_INDICATOR);
     
     // 创建圆弧进度条 - 存储 (与storage_ui匹配)
@@ -148,8 +148,8 @@ void ui_utils_create_transition_animation(void)
     lv_obj_remove_style(arc_storage, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(arc_storage, 8, LV_PART_MAIN);
     lv_obj_set_style_arc_width(arc_storage, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(arc_storage, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(arc_storage, lv_color_hex(0x4A5568), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc_storage, lv_color_hex(0x0F172A), LV_PART_MAIN);
+    lv_obj_set_style_arc_color(arc_storage, lv_color_hex(0x10B981), LV_PART_INDICATOR); // 翡翠绿指示器
     lv_obj_set_style_arc_rounded(arc_storage, true, LV_PART_INDICATOR);
 
     // 使用与CPU UI相同的进度条设置
@@ -160,12 +160,12 @@ void ui_utils_create_transition_animation(void)
     int start_y = 20;
     int left_margin = 30;
     
-    // 核心颜色数组
+    // 核心颜色数组 - 使用更新后的单色系渐变
     uint32_t color_core_colors[4] = {
-        0x06B6D4,  // 青色 - Core 0
-        0x8B5CF6,  // 紫色 - Core 1
-        0x10B981,  // 绿色 - Core 2
-        0xF59E0B   // 琥珀色 - Core 3
+        0x0284C7,  // 蓝色基础色 - Core 0
+        0x8B5CF6,  // 紫色基础色 - Core 1
+        0x10B981,  // 绿色基础色 - Core 2
+        0xF59E0B   // 橙色基础色 - Core 3
     };
     
     for(int i = 0; i < 4; i++) {
@@ -180,8 +180,12 @@ void ui_utils_create_transition_animation(void)
         lv_obj_set_style_bg_color(bars[i], lv_color_hex(0x374151), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(bars[i], LV_OPA_40, LV_PART_MAIN);
         
-        lv_obj_set_style_bg_color(bars[i], lv_color_hex(color_core_colors[i]), LV_PART_INDICATOR);
-        lv_obj_set_style_bg_grad_color(bars[i], lv_color_lighten(lv_color_hex(color_core_colors[i]), 30), LV_PART_INDICATOR);
+        // 使用同色系渐变效果 - 修复颜色处理方式
+        lv_color_t light_color = lv_color_lighten(lv_color_hex(color_core_colors[i]), 40);
+        lv_color_t dark_color = lv_color_darken(lv_color_hex(color_core_colors[i]), 20);
+        
+        lv_obj_set_style_bg_color(bars[i], light_color, LV_PART_INDICATOR);
+        lv_obj_set_style_bg_grad_color(bars[i], dark_color, LV_PART_INDICATOR);
         lv_obj_set_style_bg_grad_dir(bars[i], LV_GRAD_DIR_HOR, LV_PART_INDICATOR);
         
         lv_obj_set_style_radius(bars[i], bar_height / 2, 0);

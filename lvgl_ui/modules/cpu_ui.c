@@ -68,17 +68,36 @@ static void _create_ui(lv_obj_t *parent) {
     const lv_font_t *font_small = &lv_font_montserrat_12;
     const lv_font_t *font_mid = &lv_font_montserrat_16;
 
-    // 更新为苹果风格配色方案
-    uint32_t color_panel = 0x111827;      // 深蓝黑面板 - 类似macOS深色模式
-    uint32_t color_accent = 0x0369A1;     // iOS蓝色强调色
-    uint32_t color_core_colors[CPU_CORES] = {
-        0x06B6D4,  // 青色 - Core 0
-        0x8B5CF6,  // 紫色 - Core 1
-        0x10B981,  // 绿色 - Core 2
-        0xF59E0B   // 琥珀色 - Core 3
+    // 苹果设计语言风格配色方案
+    uint32_t color_panel = 0x1E293B;      // 深靛蓝面板色
+    uint32_t color_accent = 0x0EA5E9;     // iOS天蓝色强调色
+
+    // 核心颜色数组 - 单一色调的不同深浅版本
+    uint32_t color_core_bases[CPU_CORES] = {
+        0x0284C7,  // 蓝色基础色 - Core 0
+        0x8B5CF6,  // 紫色基础色 - Core 1
+        0x10B981,  // 绿色基础色 - Core 2
+        0xF59E0B   // 橙色基础色 - Core 3
     };
+    
+    // 进度条亮色数组 - 用于渐变起点
+    uint32_t color_core_lights[CPU_CORES] = {
+        0x38BDF8,  // 蓝色亮色 - Core 0
+        0xA78BFA,  // 紫色亮色 - Core 1
+        0x34D399,  // 绿色亮色 - Core 2
+        0xFBBF24   // 橙色亮色 - Core 3
+    };
+    
+    // 进度条暗色数组 - 用于渐变终点
+    uint32_t color_core_darks[CPU_CORES] = {
+        0x0369A1,  // 蓝色暗色 - Core 0
+        0x7C3AED,  // 紫色暗色 - Core 1
+        0x059669,  // 绿色暗色 - Core 2
+        0xD97706   // 橙色暗色 - Core 3
+    };
+
     uint32_t color_text = 0xF9FAFB;       // 近白色文本
-    uint32_t color_text_secondary = 0x9CA3AF; // 中灰色次要文本
+    uint32_t color_text_secondary = 0x94A3B8; // 中灰色次要文本
 
     // 创建CPU面板 - 苹果风格圆角矩形
     ui_data.panel = lv_obj_create(parent);
@@ -91,8 +110,8 @@ static void _create_ui(lv_obj_t *parent) {
     //
     lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_SCROLLABLE);
     
-    // 添加渐变
-    lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x1E293B), 0);
+    // 添加渐变 - 微妙的立体感
+    lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x0F172A), 0);
     lv_obj_set_style_bg_grad_dir(ui_data.panel, LV_GRAD_DIR_VER, 0);
     
     // 添加阴影效果
@@ -110,14 +129,6 @@ static void _create_ui(lv_obj_t *parent) {
     lv_label_set_text(cpu_title, "CPU MONITOR");
     lv_obj_align(cpu_title, LV_ALIGN_TOP_MID, 0, -5);
 
-    // 分隔线 - 更细更优雅
-    lv_obj_t *separator = lv_obj_create(ui_data.panel);
-    lv_obj_set_size(separator, 210, 1);
-    lv_obj_align_to(separator, cpu_title, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
-    lv_obj_set_style_bg_color(separator, lv_color_hex(color_accent), 0);
-    lv_obj_set_style_bg_opa(separator, LV_OPA_40, 0); 
-    lv_obj_set_style_border_width(separator, 0, 0);
-    lv_obj_set_style_radius(separator, 0, 0);
 
     // 进度条设置
     int bar_height = 6;        // 更细的进度条
@@ -133,7 +144,7 @@ static void _create_ui(lv_obj_t *parent) {
         // 核心标签
         lv_obj_t *core_label = lv_label_create(ui_data.panel);
         lv_obj_set_style_text_font(core_label, font_small, 0);
-        lv_obj_set_style_text_color(core_label, lv_color_hex(color_core_colors[i]), 0);
+        lv_obj_set_style_text_color(core_label, lv_color_hex(color_core_bases[i]), 0);
         lv_label_set_text_fmt(core_label, "Core%d", i);
 
         // 创建进度条 - 现代风格
@@ -145,9 +156,9 @@ static void _create_ui(lv_obj_t *parent) {
         lv_obj_set_style_bg_color(bar, lv_color_hex(0x374151), LV_PART_MAIN);
         lv_obj_set_style_bg_opa(bar, LV_OPA_40, LV_PART_MAIN);
         
-        // 指示器使用渐变效果
-        lv_obj_set_style_bg_color(bar, lv_color_hex(color_core_colors[i]), LV_PART_INDICATOR);
-        lv_obj_set_style_bg_grad_color(bar, lv_color_lighten(lv_color_hex(color_core_colors[i]), 30), LV_PART_INDICATOR);
+        // 指示器使用同色系渐变效果 - 从亮色到暗色
+        lv_obj_set_style_bg_color(bar, lv_color_hex(color_core_lights[i]), LV_PART_INDICATOR);
+        lv_obj_set_style_bg_grad_color(bar, lv_color_hex(color_core_darks[i]), LV_PART_INDICATOR);
         lv_obj_set_style_bg_grad_dir(bar, LV_GRAD_DIR_HOR, LV_PART_INDICATOR);
         
         // 圆角进度条

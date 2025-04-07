@@ -134,16 +134,15 @@ static void anim_hide_complete_cb(lv_anim_t *a) {
 static void create_wifi_notification(void) {
     // Initialize styles
     lv_style_init(&style_bubble);
-// 高级渐变方案2: 深青色到蓝色渐变
-    lv_style_set_bg_color(&style_bubble, lv_color_hex(0x9C27B0));
-    lv_style_set_bg_grad_color(&style_bubble, lv_color_hex(0x0000CD));
+// 高级渐变方案 - 苹果风格单色渐变
+    lv_style_set_bg_color(&style_bubble, lv_color_hex(0x9C27B0));        // 紫色基础色
+    lv_style_set_bg_grad_color(&style_bubble, lv_color_hex(0x7C3AED));   // 紫色暗色
     lv_style_set_bg_grad_dir(&style_bubble, LV_GRAD_DIR_VER);
-    lv_style_set_bg_opa(&style_bubble, 190);
+    lv_style_set_bg_opa(&style_bubble,200);  // 略微提高透明度增加高级感
 
-    
     // 添加细微边框增强玻璃感
-    lv_style_set_border_color(&style_bubble, lv_color_hex(0xFFFFFF));
-    lv_style_set_border_opa(&style_bubble, 120);
+    lv_style_set_border_color(&style_bubble, lv_color_hex(0xFBFBFB));
+    lv_style_set_border_opa(&style_bubble, 90);  // 减小不透明度
     lv_style_set_border_width(&style_bubble, 1);
     
     lv_style_set_radius(&style_bubble, NOTIF_CORNER_RADIUS);
@@ -157,11 +156,11 @@ static void create_wifi_notification(void) {
     lv_style_set_text_color(&style_text, lv_color_white());
     
     lv_style_init(&style_status_connected);
-    lv_style_set_bg_color(&style_status_connected, lv_color_hex(0x4CAF50)); // Green
+    lv_style_set_bg_color(&style_status_connected, lv_color_hex(0x10B981)); // 翡翠绿状态指示器
     lv_style_set_radius(&style_status_connected, LV_RADIUS_CIRCLE);
     
     lv_style_init(&style_status_disconnected);
-    lv_style_set_bg_color(&style_status_disconnected, lv_color_hex(0xF44336)); // Red
+    lv_style_set_bg_color(&style_status_disconnected, lv_color_hex(0xEF4444)); // 红色状态指示器
     lv_style_set_radius(&style_status_disconnected, LV_RADIUS_CIRCLE);
     
     // Create the bubble container

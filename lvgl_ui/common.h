@@ -35,13 +35,34 @@ typedef enum {
 /* CPU相关定义 */
 #define CPU_CORES 4  // 定义核心数量
 
-/* 颜色方案定义 */
-#define COLOR_BG         0x1E2A2A  // 深灰绿色背景
-#define COLOR_PANEL_DARK 0x16213E  // 深蓝面板
-#define COLOR_PANEL_LIGHT 0x34495E // 浅蓝面板
-#define COLOR_PRIMARY    0x3D8361  // 墨绿色
-#define COLOR_SECONDARY  0xD8B08C  // 金棕色
-#define COLOR_ACCENT     0x9B59B6  // 紫色
+/* 颜色方案定义 - 苹果高级感设计 (更新版) */
+#define COLOR_BG           0x1A1F35  // 深蓝靛背景，更深沉优雅
+#define COLOR_PANEL_DARK   0x1E293B  // 深靛蓝面板基色
+#define COLOR_PANEL_LIGHT  0x334155  // 中灰蓝面板
+#define COLOR_PRIMARY      0x0EA5E9  // 天蓝色主色
+#define COLOR_SECONDARY    0x8B5CF6  // 优雅紫色次要色
+#define COLOR_ACCENT       0x10B981  // 翡翠绿强调色
+
+/* 进度条单色渐变色方案 */
+// 蓝色系列 - Core 0
+#define COLOR_CORE_0        0x0284C7  // 蓝色基础色
+#define COLOR_CORE_0_LIGHT  0x38BDF8  // 蓝色亮色
+#define COLOR_CORE_0_DARK   0x0369A1  // 蓝色暗色
+
+// 紫色系列 - Core 1
+#define COLOR_CORE_1        0x8B5CF6  // 紫色基础色
+#define COLOR_CORE_1_LIGHT  0xA78BFA  // 紫色亮色
+#define COLOR_CORE_1_DARK   0x7C3AED  // 紫色暗色
+
+// 绿色系列 - Core 2
+#define COLOR_CORE_2        0x10B981  // 绿色基础色
+#define COLOR_CORE_2_LIGHT  0x34D399  // 绿色亮色
+#define COLOR_CORE_2_DARK   0x059669  // 绿色暗色
+
+// 橙色系列 - Core 3
+#define COLOR_CORE_3        0xF59E0B  // 橙色基础色
+#define COLOR_CORE_3_LIGHT  0xFBBF24  // 橙色亮色
+#define COLOR_CORE_3_DARK   0xD97706  // 橙色暗色
 
 /* 字体定义 */
 #define FONT_SMALL  &lv_font_montserrat_12

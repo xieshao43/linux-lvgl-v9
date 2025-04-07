@@ -259,8 +259,8 @@ static void _create_ui(lv_obj_t *parent) {
     
     if(!styles_initialized) {
         lv_style_init(&panel_style);
-        lv_style_set_bg_color(&panel_style, lv_color_hex(0x111827));
-        lv_style_set_bg_grad_color(&panel_style, lv_color_hex(0x2C3E50));
+        lv_style_set_bg_color(&panel_style, lv_color_hex(0x1E293B));         // 深靛蓝面板色
+        lv_style_set_bg_grad_color(&panel_style, lv_color_hex(0x0F172A));    // 深蓝黑色渐变终点
         lv_style_set_bg_grad_dir(&panel_style, LV_GRAD_DIR_VER);
         lv_style_set_border_width(&panel_style, 0);
         lv_style_set_radius(&panel_style, 16);
@@ -306,8 +306,8 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_remove_style(ui_data.storage_arc, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(ui_data.storage_arc, 6, LV_PART_MAIN); // 使用更细的线条更像苹果风格
     lv_obj_set_style_arc_width(ui_data.storage_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x2C3E50), LV_PART_MAIN); // 更深的背景色
-    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x8DBF9B), LV_PART_INDICATOR); // 鲜
+    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x0F172A), LV_PART_MAIN); // 更深的背景色
+    lv_obj_set_style_arc_color(ui_data.storage_arc, lv_color_hex(0x10B981), LV_PART_INDICATOR); // 翡翠绿指示器
     lv_obj_set_style_arc_rounded(ui_data.storage_arc, true, LV_PART_INDICATOR); // 苹果风格的圆角指示器
     
     // 内存弧形进度条 - 右侧 - 使用单色但鲜艳的颜色
@@ -322,8 +322,8 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_remove_style(ui_data.memory_arc, NULL, LV_PART_KNOB);
     lv_obj_set_style_arc_width(ui_data.memory_arc, 6, LV_PART_MAIN); // 使用更细的线条更像苹果风格
     lv_obj_set_style_arc_width(ui_data.memory_arc, 8, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(0x2C3E50), LV_PART_MAIN); // 更深的背景色
-    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(COLOR_SECONDARY), LV_PART_INDICATOR); // 鲜紫色指示器 (Apple风格)
+    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(0x0F172A), LV_PART_MAIN); // 更深的背景色
+    lv_obj_set_style_arc_color(ui_data.memory_arc, lv_color_hex(0x8B5CF6), LV_PART_INDICATOR); // 优雅紫色指示器
     lv_obj_set_style_arc_rounded(ui_data.memory_arc, true, LV_PART_INDICATOR); // 圆角效果
     
     // 存储标题
