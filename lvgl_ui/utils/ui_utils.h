@@ -2,6 +2,7 @@
 #define UI_UTILS_H
 
 #include "../common.h"
+#include "../core/data_manager.h"  // 添加对data_manager的引用
 
 /**
  * 将KB大小转换为可读字符串

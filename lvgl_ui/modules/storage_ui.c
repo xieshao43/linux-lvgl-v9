@@ -1,6 +1,4 @@
 #include "storage_ui.h"
-#include "../core/data_manager.h"
-#include "../utils/ui_utils.h"
 #include <stdio.h>
 
 // 私有数据结构 - 从原有storage_ui_t提取关键部分
@@ -260,7 +258,7 @@ static void _create_ui(lv_obj_t *parent) {
     if(!styles_initialized) {
         lv_style_init(&panel_style);
         lv_style_set_bg_color(&panel_style, lv_color_hex(0x1E293B));         // 深靛蓝面板色
-        lv_style_set_bg_grad_color(&panel_style, lv_color_hex(0x0F172A));    // 深蓝黑色渐变终点
+        lv_style_set_bg_grad_color(&panel_style, lv_color_hex(0x7C3AED));    // 深蓝黑色渐变终点
         lv_style_set_bg_grad_dir(&panel_style, LV_GRAD_DIR_VER);
         lv_style_set_border_width(&panel_style, 0);
         lv_style_set_radius(&panel_style, 16);
@@ -281,7 +279,9 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_add_style(ui_data.panel, &panel_style, 0);
     // 在创建面板后添加
     lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_SCROLLABLE);
-    
+    lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(parent, LV_SCROLLBAR_MODE_OFF);
+
     // 字体定义
     const lv_font_t *font_big = &lv_font_montserrat_22;
     const lv_font_t *font_small = &lv_font_montserrat_12;
@@ -329,7 +329,7 @@ static void _create_ui(lv_obj_t *parent) {
     // 存储标题
     lv_obj_t *storage_title = lv_label_create(ui_data.panel);
     lv_obj_set_style_text_font(storage_title, font_small, 0);
-    lv_obj_set_style_text_color(storage_title, lv_color_hex(color_text_secondary), 0);
+    lv_obj_set_style_text_color(storage_title, lv_color_hex(color_text), 0);
     lv_label_set_text(storage_title, "STORAGE");
     lv_obj_align_to(storage_title, ui_data.storage_arc, LV_ALIGN_OUT_TOP_MID, 0, -5);
 
@@ -343,14 +343,14 @@ static void _create_ui(lv_obj_t *parent) {
     // 存储详情
     ui_data.info_label = lv_label_create(ui_data.panel);
     lv_obj_set_style_text_font(ui_data.info_label, font_small, 0);
-    lv_obj_set_style_text_color(ui_data.info_label, lv_color_hex(color_text_secondary), 0);
+    lv_obj_set_style_text_color(ui_data.info_label, lv_color_hex(color_text), 0);
     lv_label_set_text(ui_data.info_label, "0 / 0");
     lv_obj_align_to(ui_data.info_label, ui_data.storage_arc, LV_ALIGN_OUT_BOTTOM_MID, -25, 0);
     
     // 内存标题
     lv_obj_t *memory_title = lv_label_create(ui_data.panel);
     lv_obj_set_style_text_font(memory_title, font_small, 0);
-    lv_obj_set_style_text_color(memory_title, lv_color_hex(color_text_secondary), 0);
+    lv_obj_set_style_text_color(memory_title, lv_color_hex(color_text), 0);
     lv_label_set_text(memory_title, "MEMORY");
     lv_obj_align_to(memory_title, ui_data.memory_arc, LV_ALIGN_OUT_TOP_MID, 0, -5);
 
@@ -364,7 +364,7 @@ static void _create_ui(lv_obj_t *parent) {
     // 内存详情
     ui_data.memory_info_label = lv_label_create(ui_data.panel);
     lv_obj_set_style_text_font(ui_data.memory_info_label, font_small, 0);
-    lv_obj_set_style_text_color(ui_data.memory_info_label, lv_color_hex(color_text_secondary), 0);
+    lv_obj_set_style_text_color(ui_data.memory_info_label, lv_color_hex(color_text), 0);
     lv_label_set_text(ui_data.memory_info_label, "0 / 0");
     lv_obj_align_to(ui_data.memory_info_label, ui_data.memory_arc, LV_ALIGN_OUT_BOTTOM_MID, -30, 0);
     

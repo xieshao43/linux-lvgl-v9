@@ -36,8 +36,8 @@ void ui_perf_mgr_init(void) {
     memset(&perf_data, 0, sizeof(ui_perf_data_t));
     
     // 针对H3处理器优化的默认设置
-    perf_data.throttle_ms = 33;  // 适合H3的默认帧率约30fps
-    perf_data.current_fps = 30.0f;
+    perf_data.throttle_ms = 15;  // 适合H3的默认帧率约60fps 240x135
+    perf_data.current_fps = 60.0f;
     perf_data.cpu_load = 0;
     perf_data.memory_pressure = 0;
     perf_data.low_power_mode = false;

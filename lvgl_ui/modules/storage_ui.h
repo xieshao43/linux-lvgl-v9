@@ -2,6 +2,9 @@
 #define STORAGE_UI_H
 
 #include "../common.h"
+#include "../core/data_manager.h"
+#include "../utils/ui_utils.h"
+#include "../utils/ui_rounded.h"
 
 /**
  * 获取存储监控模块接口

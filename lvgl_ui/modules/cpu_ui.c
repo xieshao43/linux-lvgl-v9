@@ -1,8 +1,10 @@
 #include "cpu_ui.h"
 #include "../core/data_manager.h"
 #include "../utils/ui_utils.h"
+#include "../utils/ui_rounded.h"
 #include <stdio.h>
 #include <math.h>   // 添加math.h头文件，解决fabs函数未声明问题
+
 
 // 私有数据结构
 typedef struct {
@@ -103,15 +105,14 @@ static void _create_ui(lv_obj_t *parent) {
     ui_data.panel = lv_obj_create(parent);
     lv_obj_set_size(ui_data.panel, 240, 135);
     lv_obj_align(ui_data.panel, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(ui_data.panel, lv_color_hex(color_panel), 0);
+    lv_obj_set_style_bg_color(ui_data.panel, lv_color_hex(0x1E293B), 0);  // 深靛蓝面板色
     lv_obj_set_style_border_width(ui_data.panel, 0, 0);
     lv_obj_set_style_radius(ui_data.panel, 16, 0); // macOS风格圆角
     lv_obj_set_style_pad_all(ui_data.panel, 15, 0);
-    //
     lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_SCROLLABLE);
     
-    // 添加渐变 - 微妙的立体感
-    lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x0F172A), 0);
+    // 添加渐变 - 统一与其他面板相同的渐变效果
+    lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x7C3AED), 0);  // 深蓝黑色渐变终点
     lv_obj_set_style_bg_grad_dir(ui_data.panel, LV_GRAD_DIR_VER, 0);
     
     // 添加阴影效果
@@ -128,7 +129,6 @@ static void _create_ui(lv_obj_t *parent) {
     lv_obj_set_style_text_color(cpu_title, lv_color_hex(color_text), 0);
     lv_label_set_text(cpu_title, "CPU MONITOR");
     lv_obj_align(cpu_title, LV_ALIGN_TOP_MID, 0, -5);
-
 
     // 进度条设置
     int bar_height = 6;        // 更细的进度条

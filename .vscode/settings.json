@@ -2,6 +2,7 @@
     "files.associations": {
         "lv_examples.h": "c",
         "cpu_ui.h": "c",
-        "mpu_6050_info.h": "c"
+        "mpu_6050_info.h": "c",
+        "data_manager.h": "c"
     }
 }

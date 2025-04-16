@@ -4,6 +4,8 @@
 #include "../common.h"
 #include "data_manager.h" 
 #include <stdio.h>
+#include "../utils/ui_utils.h"  // 添加ui_utils.h的引用
+
 
 /**
  * 初始化UI管理器
