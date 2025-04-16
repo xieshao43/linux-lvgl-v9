@@ -4,7 +4,7 @@ bash
 mkdir build && cd build  
 cmake ..   
 make -j   \
-cd /linux-lvgl-v9/bin \  
+cd /linux-lvgl-v9/bin  
 ./main   
 # Linux board minimum requirements
 CPU: Allwinner H3, 四核 Cortex-A7 @ 1GHz \
