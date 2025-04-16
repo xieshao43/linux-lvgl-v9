@@ -2,7 +2,7 @@
 Install steps
 bash
 mkdir build && cd build \  
-cmake ..   \ 
+cmake ..   
 make -j   \
 cd /linux-lvgl-v9/bin \  
 ./main   
