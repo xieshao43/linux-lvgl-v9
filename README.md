@@ -1,7 +1,7 @@
 # linux_lvgl_V9.0
 Install steps
 bash
-mkdir build && cd build \  
+mkdir build && cd build  
 cmake ..   
 make -j   \
 cd /linux-lvgl-v9/bin \  
