@@ -5,7 +5,7 @@ mkdir build && cd build \
 cmake ..   \ 
 make -j   \
 cd /linux-lvgl-v9/bin \  
-./main   \
+./main   
 # Linux board minimum requirements
 CPU: Allwinner H3, 四核 Cortex-A7 @ 1GHz \
 GPU: ARM Mali400 MP2 GPU \
@@ -19,7 +19,7 @@ Wifi: RTL8723BU IEEE 802.11 b/g/n @2.4GHz \
 板载外设: 麦克风，MPU6050 运动传感器（陀螺仪 + 加速度计）, 按钮（GPIO-KEY, Uboot, Recovery, Reset） \
 显示屏: ST7789vw 驱动 1.14 寸，分辨率 240×135 \
 外部存储: Micro SD 卡插槽 \
-喇叭功放: LM4871，最大推 3 瓦功率的喇叭 \
+喇叭功放: LM4871，最大推 3 瓦功率的喇叭 
 # Update log
 Ported the lvgl 9.0 \
 Added an lvgl example to monitor CPU and Memory usage \
@@ -28,4 +28,4 @@ Features \
 Added a self-designed example that can build and run on Linux \
 Optimized the performance and efficiency of the Linux version of lvgl \
 Replaced the Uboot loading logo  \ 
-Tested hardware compatibility with peripherals (e.g., serial ports)  \
+Tested hardware compatibility with peripherals (e.g., serial ports)  
