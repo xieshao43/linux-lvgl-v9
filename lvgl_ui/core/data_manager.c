@@ -1,14 +1,5 @@
 #include "data_manager.h"
-#include "../common.h"
-#include "../utils/ui_perf_mgr.h" // 添加性能管理器头文件
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>  // 使用isdigit函数
-#include <math.h>   // 添加math.h头文件，解决fabs函数未声明问题
-#include <fcntl.h>  // 添加fcntl.h，提供O_RDONLY等常量
-#include <unistd.h> // 添加unistd.h，提供read、close函数
-#include <sys/statvfs.h>
+
 
 // 添加前向声明，解决隐式声明问题
 static bool _try_update_all_data(void);

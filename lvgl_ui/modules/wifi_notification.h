@@ -35,4 +35,12 @@ void wifi_notification_hide(void);
  */
 bool wifi_notification_is_visible(void);
 
+/**
+ * Update WiFi status for a specific interface
+ * @param state The WiFi connection state
+ * @param ssid The SSID (can be NULL)
+ * @param interface The interface name (e.g. "wlan0", "wlan1")
+ */
+void wifi_notification_update_interface(wifi_state_t state, const char *ssid, const char *interface);
+
 #endif // WIFI_NOTIFICATION_H
