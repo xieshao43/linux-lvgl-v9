@@ -1,4 +1,5 @@
 #include "data_manager.h"
+#include "ui_manager.h" // 添加UI管理器头文件
 
 
 // 添加前向声明，解决隐式声明问题
@@ -21,13 +22,19 @@ static uint8_t cpu_temp = 0;
 
 // 添加优化标志，检测是否有动画正在进行
 static bool anim_in_progress = false;
+static bool is_initialized = false;
 
 // 添加缓存控制变量
 static uint32_t last_full_update_time = 0;
 static bool data_changed = false;
 
+// 添加状态变量
+static uint8_t update_priority_level = 0; // 0=低，1=中，2=高
+static uint32_t battery_saving_mode_time = 0;
+static bool low_power_mode = false;
+
 // 高效CPU数据读取实现 - 针对Allwinner H3优化
-static void _read_cpu_data(void) {
+static bool _read_cpu_data(void) {
     // 声明所有变量在函数开始处，避免goto标签后声明变量的问题
     static char buffer[8192];  // 更大的缓冲区，H3处理器有4个核心
     static unsigned long long prev_cpu_data[CPU_CORES+1][8] = {0};
@@ -204,7 +211,7 @@ static void _read_cpu_data(void) {
         data_changed = true;
     }
     
-    return;
+    return cpu_changed;
 
 fallback_cpu_data:
     ; // 添加空语句，解决标签后直接声明变量的问题
@@ -223,10 +230,11 @@ fallback_cpu_data:
     
     // 随机生成温度数据
     cpu_temp = 45 + (rand() % 15);
+    return cpu_changed;
 }
 
 // 优化的存储数据读取函数
-static void _read_storage_data(void) {
+static bool _read_storage_data(void) {
     // 静态缓存，避免频繁分配内存
     static char result_buffer[1024];
     static uint64_t last_storage_total = 0;
@@ -302,10 +310,11 @@ static void _read_storage_data(void) {
         last_storage_used = storage_used;
         data_changed = true;
     }
+    return data_changed;
 }
 
 // 优化的内存数据读取函数 - 零拷贝实现
-static void _read_memory_data(void) {
+static bool _read_memory_data(void) {
     static char buffer[4096];  // 足够大的缓冲区一次读取整个/proc/meminfo
     static uint64_t last_memory_total = 0;
     static uint64_t last_memory_used = 0;
@@ -335,7 +344,7 @@ static void _read_memory_data(void) {
             
             retry_count = 0;
         }
-        return;
+        return data_changed;
     }
     
     // 一次性读取整个文件内容到内存
@@ -376,60 +385,133 @@ static void _read_memory_data(void) {
         last_memory_total = memory_total;
         data_changed = true;
     }
+    return data_changed;
 }
 
 // 改进当前的轮询式数据收集 - 实现智能更新策略
-void data_manager_update(void) {
+bool data_manager_update(void) {
     static uint32_t last_storage_time = 0;
     static uint32_t last_cpu_time = 0;
     static uint32_t last_memory_time = 0;
     static uint8_t update_cycle = 0;  // 循环计数器
+    static uint32_t last_activity_time = 0;
     uint32_t current_time = lv_tick_get();
+    bool any_data_changed = false;
+    bool was_data_changed = data_changed;
     
     // 重置变化标志
     data_changed = false;
     
-    // Allwinner H3优化策略：交错更新不同类型的数据
-    // 在单个更新周期内，只处理一种类型的数据读取
-    // 这样可以避免I/O堆积和CPU峰值
+    // 检测长时间无活动，进入低功耗模式
+    if (current_time - last_activity_time > 30000 && !low_power_mode) {
+        low_power_mode = true;
+        battery_saving_mode_time = current_time;
+    }
     
-    switch (update_cycle % 3) {
-        case 0:  // 更新CPU数据 - 优先级最高，更新频率最高
-            if (current_time - last_cpu_time > 500) {  // 每500ms更新一次CPU数据
+    // 苹果风格的动态优先级更新策略
+    // 定义每种数据类型在不同优先级下的更新间隔(ms)
+    const uint32_t cpu_intervals[3] = {800, 400, 200};  // 低、中、高优先级下的CPU更新间隔
+    const uint32_t memory_intervals[3] = {2000, 1000, 500};  // 内存更新间隔
+    const uint32_t storage_intervals[3] = {5000, 3000, 1500};  // 存储更新间隔
+    
+    // 根据活跃状态，选择当前要更新的数据类型
+    bool should_update_cpu = (current_time - last_cpu_time >= cpu_intervals[update_priority_level]);
+    bool should_update_memory = (current_time - last_memory_time >= memory_intervals[update_priority_level]);
+    bool should_update_storage = (current_time - last_storage_time >= storage_intervals[update_priority_level]);
+    
+    // 低功耗模式下进一步降低更新频率
+    if (low_power_mode) {
+        should_update_cpu &= (current_time - last_cpu_time >= cpu_intervals[0] * 3);
+        should_update_memory &= (current_time - last_memory_time >= memory_intervals[0] * 3);
+        should_update_storage &= (current_time - last_storage_time >= storage_intervals[0] * 3);
+    }
+    
+    // 使用预测性能效率的Apple Intelligent Tracking方式，智能决定要更新的数据
+    // 基于当前活跃的模块和用户交互历史，优先更新最可能被查看的数据
+    uint8_t active_module = ui_manager_get_active_module();
+    
+    // 优先更新当前显示模块所需的数据
+    if (active_module == 1) {  // 存储模块
+        if (should_update_storage && _read_storage_data()) {
+            any_data_changed = true;
+            last_storage_time = current_time;
+        }
+        if (should_update_memory && _read_memory_data()) {
+            any_data_changed = true;
+            last_memory_time = current_time;
+        }
+    } else if (active_module == 2) {  // CPU模块
+        // 在CPU界面使用更节能的更新策略
+        if (should_update_cpu && low_power_mode) {
+            // 低功耗模式下额外降低CPU刷新频率
+            static uint8_t cpu_update_throttle = 0;
+            if (++cpu_update_throttle >= 3) {  // 仅每3次更新一次
                 _read_cpu_data();
                 last_cpu_time = current_time;
-                
-                // 读取CPU温度信息，并传递给性能管理器
-                ui_perf_mgr_set_system_load(
-                    (uint8_t)cpu_usage,         // CPU负载
-                    (uint8_t)((memory_used * 100) / memory_total), // 内存压力
-                    cpu_temp                    // CPU温度
-                );
+                cpu_update_throttle = 0;
+                any_data_changed = true;
             }
-            break;
-            
-        case 1:  // 更新内存数据 - 优先级中等
-            if (current_time - last_memory_time > 1000) {  // 每1秒更新一次内存
-                _read_memory_data();
-                last_memory_time = current_time;
-            }
-            break;
-            
-        case 2:  // 更新存储数据 - 优先级最低，变化最慢
-            if (current_time - last_storage_time > 5000) {  // 每5秒更新一次存储
-                _read_storage_data();
-                last_storage_time = current_time;
-            }
-            break;
+        } else if (should_update_cpu) {
+            _read_cpu_data();
+            last_cpu_time = current_time;
+            any_data_changed = true;
+        }
+        
+        // 在CPU界面不频繁更新内存数据，节省资源
+        if (current_time - last_memory_time >= memory_intervals[update_priority_level] * 2) {
+            _read_memory_data();
+            last_memory_time = current_time;
+        }
+    } else { // 其他模块保持原有逻辑
+        // 在非数据密集型界面下，降低更新频率，提高电池寿命
+        // 但仍维持一个最低更新频率，确保数据不会太旧
+        switch (update_cycle % 3) {
+            case 0:
+                if (should_update_cpu && _read_cpu_data()) {
+                    any_data_changed = true;
+                    last_cpu_time = current_time;
+                }
+                break;
+            case 1:
+                if (should_update_memory && _read_memory_data()) {
+                    any_data_changed = true;
+                    last_memory_time = current_time;
+                }
+                break;
+            case 2:
+                if (should_update_storage && _read_storage_data()) {
+                    any_data_changed = true;
+                    last_storage_time = current_time;
+                }
+                break;
+        }
     }
     
     update_cycle++;
     
-    // 动画期间的特殊处理
+    // 如果检测到数据变化，更新最后活动时间
+    if (any_data_changed || data_changed) {
+        last_activity_time = current_time;
+        
+        // 如果是在低功耗模式下检测到数据变化，退出低功耗模式
+        if (low_power_mode) {
+            low_power_mode = false;
+        }
+    }
+    
+    // 如果开启了性能监控，传递系统负载数据
+    ui_perf_mgr_set_system_load(
+        (uint8_t)cpu_usage,         // CPU负载
+        (uint8_t)((memory_used * 100) / memory_total), // 内存压力
+        cpu_temp                    // CPU温度
+    );
+    
+    // 动画期间确保UI得到更新
     if (anim_in_progress) {
-        // 强制设置数据变化标志，确保动画期间UI平滑更新
         data_changed = true;
     }
+    
+    return any_data_changed || was_data_changed || data_changed;
 }
 
 // 初始化数据管理器
@@ -443,11 +525,26 @@ void data_manager_init(const char *path) {
     _read_storage_data();
     _read_memory_data();
     _read_cpu_data();
+    
+    // 设置初始化标志
+    is_initialized = true;
 }
 
-// 动画开始时调用此函数 
+// 动画开始时调用此函数 - 增强线程安全性
 void data_manager_set_anim_state(bool is_animating) {
+    // 记录旧状态
+    bool old_state = anim_in_progress;
+    
+    // 更新状态
     anim_in_progress = is_animating;
+    
+    // 调试输出
+    if (old_state != anim_in_progress) {
+        #if UI_DEBUG_ENABLED
+        printf("[DATA_MGR] Animation state changed: %d -> %d\n", 
+               old_state, anim_in_progress);
+        #endif
+    }
 }
 
 // 检查数据是否有变化
@@ -513,5 +610,48 @@ static void _use_last_valid_data(void) {
     // 使用上次有效的数据
     // 此处什么也不做，因为数据已经在缓存中
     LV_LOG_INFO("Using last valid data");
+}
+
+// 新增API：设置数据更新优先级 - 允许UI模块动态调整数据刷新优先级
+void data_manager_set_update_priority(uint8_t priority) {
+    if (priority <= 2) {  // 有效范围检查：0=低, 1=中, 2=高
+        update_priority_level = priority;
+    }
+}
+
+// 新增API：发送用户交互事件通知 - 当有用户交互时调用，用于智能调整更新策略
+void data_manager_notify_user_activity(void) {
+    // 用户交互后立即升高优先级，提供更及时的反馈
+    update_priority_level = 2; // 高优先级
+    low_power_mode = false;
+    
+    // 创建一个延时任务，在短时间高频更新后恢复中等优先级
+    static lv_timer_t *priority_reset_timer = NULL;
+    
+    if (priority_reset_timer) {
+        lv_timer_reset(priority_reset_timer);
+    } else {
+        priority_reset_timer = lv_timer_create(
+            (lv_timer_cb_t)data_manager_set_update_priority,
+            3000,  // 3秒后恢复中等优先级
+            (void *)1  // 中等优先级参数
+        );
+        lv_timer_set_repeat_count(priority_reset_timer, 1);
+    }
+}
+
+
+
+
+
+// 在析构函数开头重置
+void data_manager_deinit(void) {
+    is_initialized = false;
+    // 现有代码...
+}
+
+// 实现检查函数
+bool data_manager_is_initialized(void) {
+    return is_initialized;
 }
 

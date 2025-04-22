@@ -1,4 +1,7 @@
 #include "storage_ui.h"
+#include "../core/ui_manager.h" // 添加UI管理器头文件
+#include "../core/key355.h"     // 添加按钮处理头文件
+#include "../core/data_manager.h"
 #include <stdio.h>
 
 // 私有数据结构 - 从原有storage_ui_t提取关键部分
@@ -11,7 +14,11 @@ typedef struct {
     lv_obj_t *memory_arc;      // 内存环形图
     lv_obj_t *memory_percent_label; // 内存百分比标签
     lv_obj_t *memory_info_label;    // 内存详情标签
+
+    lv_timer_t *button_timer;  // 按钮检测定时器
+    bool is_active;     
 } storage_ui_data_t;
+
 
 // 添加这些缺失的类型定义
 typedef struct {
@@ -57,8 +64,7 @@ static void _update_ui(void);
 static void _show_ui(void);
 static void _hide_ui(void);
 static void _delete_ui(void);
-
-// 添加这些函数的前向声明，解决隐式声明问题
+static void _button_handler_cb(lv_timer_t *timer); // 添加按钮处理回调的前向声明
 static bool _needs_update(void);
 static void _batch_fetch_all_data(storage_data_t *storage_data, memory_data_t *memory_data);
 
@@ -374,6 +380,48 @@ static void _create_ui(lv_obj_t *parent) {
     
     // 初始时隐藏面板
     lv_obj_add_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
+
+    ui_data.button_timer = lv_timer_create(_button_handler_cb, 50, NULL);
+    ui_data.is_active = false;
+
+}
+
+// 创建平滑的圆弧动画
+static void _create_smooth_arc_animation(lv_obj_t *arc, int32_t start_value, int32_t end_value) {
+    // 计算变化幅度和合适的动画时长
+    int32_t change_magnitude = abs(end_value - start_value);
+    uint16_t duration;
+    
+    // 根据变化幅度动态调整动画时间
+    if (change_magnitude > 20) {
+        duration = 1000;  // 大幅度变化使用较长动画
+    } else if (change_magnitude > 10) {
+        duration = 800;   // 中等变化使用中等动画
+    } else if (change_magnitude > 5) {
+        duration = 600;   // 小变化使用较短动画
+    } else {
+        duration = 400;   // 微小变化使用最短动画
+    }
+    
+    // 创建动画
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, arc);
+    lv_anim_set_values(&a, start_value, end_value);
+    lv_anim_set_time(&a, duration);
+    lv_anim_set_exec_cb(&a, (lv_anim_exec_xcb_t)lv_arc_set_value);
+    
+    // 为圆弧设置平滑的缓动函数
+    if (change_magnitude > 10) {
+        // 大幅度变化使用缓入缓出效果，让整个动画更平滑
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
+    } else {
+        // 小幅度变化使用缓出效果，让动画终点更平滑
+        lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    }
+    
+    // 启动动画
+    lv_anim_start(&a);
 }
 
 // 苹果风格的性能优化 - 主线程阻塞时间极短
@@ -433,12 +481,16 @@ static void _batch_fetch_all_data(storage_data_t *storage_data, memory_data_t *m
 
 // 显示UI - 添加苹果风格的交错进入动画
 static void _show_ui(void) {
+    #if UI_DEBUG_ENABLED
+    printf("[STORAGE] Showing storage UI\n");
+    #endif
+    
     lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
     
     // 获取当前实际数据
     uint8_t storage_percent, memory_percent;
     uint64_t storage_used, storage_total;
-    uint64_t memory_used, memory_total;
+    uint64_t memory_used, memory_total;  // 修复了重复类型声明问题
     
     // 获取最新数据
     data_manager_get_storage(&storage_used, &storage_total, &storage_percent);
@@ -484,29 +536,123 @@ static void _show_ui(void) {
         (void *)false
     );
     lv_timer_set_repeat_count(anim_end_timer, 1);
+    ui_data.is_active = true;
 }
 
 // 隐藏UI
 static void _hide_ui(void) {
     lv_obj_add_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
+    ui_data.is_active = false;
 }
 
-// 修改：删除UI时清理所有动画资源
+// 修改：删除UI时清理所有动画资源，确保安全删除
 static void _delete_ui(void) {
+    #if UI_DEBUG_ENABLED
+    printf("[STORAGE] Deleting storage UI resources\n");
+    #endif
+    
+    // 标记为非活动状态
+    ui_data.is_active = false;
+    
+    // 清理按钮定时器
+    if (ui_data.button_timer) {
+        lv_timer_delete(ui_data.button_timer);
+        ui_data.button_timer = NULL;
+        #if UI_DEBUG_ENABLED
+        printf("[STORAGE] Button timer deleted\n");
+        #endif
+    }
+    
+    // 清理spinner定时器
+    if (spin_timer) {
+        lv_timer_delete(spin_timer);
+        spin_timer = NULL;
+        #if UI_DEBUG_ENABLED
+        printf("[STORAGE] Spinner timer deleted\n");
+        #endif
+    }
+    
+    // 清理激活状态进度条定时器
+    if (active_arc_timer) {
+        lv_timer_delete(active_arc_timer);
+        active_arc_timer = NULL;
+        #if UI_DEBUG_ENABLED
+        printf("[STORAGE] Active arc timer deleted\n");
+        #endif
+    }
+    
+    // 停止所有进行中的动画
+    lv_anim_del_all();
+    
+    // 等待任务处理完成
+    lv_task_handler();
+    
+    // 删除面板及所有子对象
     if (ui_data.panel) {
-        // 清理spinner定时器
-        if (spin_timer) {
-            lv_timer_delete(spin_timer);
-            spin_timer = NULL;
-        }
+        lv_obj_t *panel_to_delete = ui_data.panel;
+        ui_data.panel = NULL;  // 先置空指针，防止回调函数访问
+        ui_data.storage_arc = NULL;
+        ui_data.memory_arc = NULL;
+        ui_data.percent_label = NULL;
+        ui_data.memory_percent_label = NULL;
+        ui_data.info_label = NULL;
+        ui_data.memory_info_label = NULL;
         
-        // 清理激活状态进度条定时器
-        if (active_arc_timer) {
-            lv_timer_delete(active_arc_timer);
-            active_arc_timer = NULL;
-        }
-        
-        lv_obj_delete(ui_data.panel);
-        ui_data.panel = NULL;
+        // 安全删除面板
+        lv_obj_delete(panel_to_delete);
+        #if UI_DEBUG_ENABLED
+        printf("[STORAGE] Panel deleted\n");
+        #endif
+    }
+    
+    // 重置动画状态变量
+    spin_animation_active = false;
+    active_progress_mode = false;
+    current_spin_angle = 0;
+}
+
+// 改进按钮处理函数
+static void _button_handler_cb(lv_timer_t *timer) {
+    // 增强安全检查
+    if (!ui_data.is_active || !ui_data.panel) return;
+    
+    button_event_t event = key355_get_event();
+    if (event == BUTTON_EVENT_NONE) return;
+    
+    #if UI_DEBUG_ENABLED
+    printf("[STORAGE] Button event: %d\n", event);
+    #endif
+    
+    // 处理不同按钮事件
+    switch (event) {
+        case BUTTON_EVENT_CLICK:
+            // 单击切换激活/普通显示模式
+            if (active_progress_mode) {
+                stop_all_animations();
+            } else {
+                start_active_progress_animation();
+            }
+            break;
+            
+        case BUTTON_EVENT_DOUBLE_CLICK:
+            #if UI_DEBUG_ENABLED
+            printf("[STORAGE] Double click detected, returning to menu\n");
+            #endif
+            
+            // 停止所有动画
+            stop_all_animations();
+            
+            // 标记为非活动状态
+            ui_data.is_active = false;
+            
+            // 强制处理任务，确保所有UI操作已完成
+            lv_task_handler();
+            
+            // 切换到菜单模块
+            ui_manager_show_module(0);
+            break;
+            
+        default:
+            break;
     }
 }

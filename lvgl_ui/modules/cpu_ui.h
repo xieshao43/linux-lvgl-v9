@@ -1,8 +1,8 @@
-
 #ifndef CPU_UI_H
 #define CPU_UI_H
 
 #include "../common.h"
+#include "../core/key355.h"  // 添加此行
 
 /**
  * 获取CPU监控模块接口
