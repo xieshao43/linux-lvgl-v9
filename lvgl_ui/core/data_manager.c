@@ -535,14 +535,14 @@ void data_manager_set_anim_state(bool is_animating) {
     // 记录旧状态
     bool old_state = anim_in_progress;
     
-    // 更新状态
-    anim_in_progress = is_animating;
+    // 更新状态 - 确保使用布尔值而不是指针或其他值
+    anim_in_progress = is_animating ? true : false;
     
-    // 调试输出
+    // 调试输出 - 只输出布尔值，避免将指针值输出为整数
     if (old_state != anim_in_progress) {
         #if UI_DEBUG_ENABLED
         printf("[DATA_MGR] Animation state changed: %d -> %d\n", 
-               old_state, anim_in_progress);
+               old_state ? 1 : 0, anim_in_progress ? 1 : 0);
         #endif
     }
 }

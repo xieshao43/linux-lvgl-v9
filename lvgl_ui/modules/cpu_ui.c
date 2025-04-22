@@ -542,11 +542,19 @@ static void _show_ui(void) {
     }
     lv_obj_set_style_opa(ui_data.temp_label, LV_OPA_COVER, 0);
     
+    // 添加苹果风格的进入动画
+    ui_utils_page_enter_anim(
+        ui_data.panel,
+        ANIM_SLIDE_LEFT, // 从右向左滑入效果
+        ANIM_DURATION,
+        NULL
+    );
+    
     // 立即调用一次更新以填充数据
     _update_ui();
     ui_data.is_active = true;
     
-    // 设置数据管理器状态
+    // 设置数据管理器状态 - 确保使用布尔值
     data_manager_set_anim_state(false);
     
     // 重置更新频率相关参数
@@ -612,6 +620,29 @@ static void _delete_ui(void) {
     ui_cache.first_update = true;
 }
 
+// 添加一个新的全局变量用于确保模块索引的安全传递
+static uint8_t menu_module_index = 0; // 菜单模块索引始终为0
+
+// 添加安全包装函数，确保正确设置动画状态
+static void _set_anim_state_wrapper(lv_timer_t *timer) {
+    // 安全调用，确保传递false值
+    data_manager_set_anim_state(false);
+}
+
+// 专门用于跳转到菜单的包装函数
+static void _switch_to_menu_wrapper(lv_timer_t *timer) {
+    // 确保动画状态被重置
+    data_manager_set_anim_state(false);
+    
+    // 确保安全跳转到菜单模块
+    #if UI_DEBUG_ENABLED
+    printf("[CPU] Switching to menu module: %d\n", menu_module_index);
+    #endif
+    
+    // 安全调用UI管理器
+    ui_manager_show_module(menu_module_index);
+}
+
 // 改进按钮处理函数
 static void _button_handler_cb(lv_timer_t *timer) {
     // 增强安全性检查
@@ -637,11 +668,25 @@ static void _button_handler_cb(lv_timer_t *timer) {
             // 停止所有正在进行的动画
             lv_anim_del_all();
             
-            // 强制处理任务，确保所有UI操作已完成
-            lv_task_handler();
+            // 添加苹果风格退出动画
+            ui_utils_page_exit_anim(
+                ui_data.panel,
+                ANIM_SLIDE_RIGHT,  // 向右滑出
+                ANIM_DURATION,
+                false,
+                NULL
+            );
             
-            // 返回菜单模块
-            ui_manager_show_module(0);
+            // 确保重置所有状态
+            data_manager_set_anim_state(false);
+            
+            // 延迟切换到菜单界面，使用专用的包装函数而非直接传递索引
+            lv_timer_t *menu_timer = lv_timer_create(
+                _switch_to_menu_wrapper,  // 使用安全包装函数
+                ANIM_DURATION + 50,       // 稍微延迟确保动画完成
+                NULL                      // 不需要传递用户数据，使用全局变量
+            );
+            lv_timer_set_repeat_count(menu_timer, 1);
             break;
             
         default:

@@ -34,12 +34,33 @@ void ui_utils_animate_bar(lv_obj_t *bar, int32_t start_value, int32_t end_value,
 int32_t ui_utils_anim_path_overshoot(const lv_anim_t * a);
 
 /**
- * 创建从圆弧进度条到水平进度条的过渡动画
- * 动画结束后会自动清理临时对象
+ * 创建页面过渡动画 - 苹果风格
+ * @param old_page 当前页面对象
+ * @param new_page 新页面对象
+ * @param anim_type 动画类型(参见ui_anim_type_t)
+ * @param duration_ms 动画持续时间(ms)
+ * @param destroy_old 是否在动画结束后销毁旧页面
+ * @param user_cb 动画完成后的用户回调函数(可为NULL)
  */
-void ui_utils_create_transition_animation(void);
+void ui_utils_page_transition(lv_obj_t *old_page, lv_obj_t *new_page, ui_anim_type_t anim_type, uint32_t duration_ms, bool destroy_old, lv_anim_ready_cb_t user_cb);
 
-void ui_utils_create_reverse_transition_animation(void);
+/**
+ * 创建进入动画 - 仅用于新页面
+ * @param page 页面对象
+ * @param anim_type 动画类型
+ * @param duration_ms 动画持续时间(ms)
+ * @param user_cb 动画完成后的用户回调函数(可为NULL)
+ */
+void ui_utils_page_enter_anim(lv_obj_t *page, ui_anim_type_t anim_type, uint32_t duration_ms, lv_anim_ready_cb_t user_cb);
 
+/**
+ * 创建退出动画 - 仅用于旧页面
+ * @param page 页面对象
+ * @param anim_type 动画类型
+ * @param duration_ms 动画持续时间(ms)
+ * @param destroy 是否在动画结束后销毁页面
+ * @param user_cb 动画完成后的用户回调函数(可为NULL)
+ */
+void ui_utils_page_exit_anim(lv_obj_t *page, ui_anim_type_t anim_type, uint32_t duration_ms, bool destroy, lv_anim_ready_cb_t user_cb);
 
 #endif // UI_UTILS_H
