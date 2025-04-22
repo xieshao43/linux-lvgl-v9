@@ -10,7 +10,7 @@
     #define LV_ATTRIBUTE_IMAGE_IMG_LV_DEMO_MUSIC_COVER_1
 #endif
 
-const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST 
+const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST
 LV_ATTRIBUTE_IMAGE_IMG_LV_DEMO_MUSIC_COVER_1 uint8_t
 img_lv_demo_music_cover_1_map[] = {
     /*Pixel format: Blue: 8 bit, Green: 8 bit, Red: 8 bit, Fix 0xFF: 8 bit, */
@@ -445,12 +445,13 @@ img_lv_demo_music_cover_1_map[] = {
 
 };
 
-const lv_img_dsc_t img_lv_demo_music_cover_1 = {
+const lv_image_dsc_t img_lv_demo_music_cover_1 = {
     .header.w = 428,
     .header.h = 428,
-    .data_size = 183184 * LV_COLOR_DEPTH / 8,
+    .header.stride = 1712,
     .header.cf = LV_COLOR_FORMAT_ARGB8888,
     .data = img_lv_demo_music_cover_1_map,
+    .data_size = sizeof(img_lv_demo_music_cover_1_map),
 };
 
 #endif

@@ -1,4 +1,4 @@
-# linux_lvgl_V9.0
+# linux_lvgl_V9.2！
 
 # Install steps:
 

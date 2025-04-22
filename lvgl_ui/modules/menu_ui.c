@@ -128,7 +128,7 @@ static void _module_switch_wrapper(lv_timer_t *timer) {
     if(timer == NULL) return;
     
     // 从定时器的用户数据中获取模块索引
-    uint8_t module_idx = (uint8_t)((uintptr_t)timer->user_data);
+    uint8_t module_idx = (uint8_t)((uintptr_t)lv_timer_get_user_data(timer));
     
     #if UI_DEBUG_ENABLED
     printf("[MENU] Switch wrapper: switching to module %d\n", module_idx);

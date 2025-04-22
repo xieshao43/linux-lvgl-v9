@@ -6,7 +6,8 @@
 /*********************
  *      INCLUDES
  *********************/
-#include "lv_animimage.h"
+#include "lv_animimage_private.h"
+#include "../../core/lv_obj_class_private.h"
 #if LV_USE_ANIMIMG != 0
 
 /*Testing of dependencies*/
@@ -27,7 +28,7 @@
  *********************/
 #define LV_OBJX_NAME "lv_animimg"
 
-#define MY_CLASS &lv_animimg_class
+#define MY_CLASS (&lv_animimg_class)
 
 /**********************
  *      TYPEDEFS
@@ -36,18 +37,54 @@
 /**********************
  *  STATIC PROTOTYPES
  **********************/
-static void index_change(lv_obj_t * obj, int32_t index);
+static void index_change(lv_obj_t * obj, int32_t idx);
 static void lv_animimg_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj);
 
 /**********************
  *  STATIC VARIABLES
  **********************/
 
+#if LV_USE_OBJ_PROPERTY
+static const lv_property_ops_t properties[] = {
+    {
+        .id = LV_PROPERTY_ANIMIMAGE_SRC,
+        .setter = lv_animimg_set_src,
+        .getter = lv_animimg_get_src,
+    },
+    {
+        .id = LV_PROPERTY_ANIMIMAGE_DURATION,
+        .setter = lv_animimg_set_duration,
+        .getter = lv_animimg_get_duration,
+    },
+    {
+        .id = LV_PROPERTY_ANIMIMAGE_REPEAT_COUNT,
+        .setter = lv_animimg_set_repeat_count,
+        .getter = lv_animimg_get_repeat_count,
+    },
+    {
+        .id = LV_PROPERTY_ANIMIMAGE_SRC_COUNT,
+        .setter = NULL,
+        .getter = lv_animimg_get_src_count,
+    },
+};
+#endif
+
 const lv_obj_class_t lv_animimg_class = {
     .constructor_cb = lv_animimg_constructor,
     .instance_size = sizeof(lv_animimg_t),
     .base_class = &lv_image_class,
-    .name = "animimg",
+    .name = "lv_animimg",
+#if LV_USE_OBJ_PROPERTY
+    .prop_index_start = LV_PROPERTY_ANIMIMAGE_START,
+    .prop_index_end = LV_PROPERTY_ANIMIMAGE_END,
+    .properties = properties,
+    .properties_count = sizeof(properties) / sizeof(properties[0]),
+
+#if LV_USE_OBJ_PROPERTY_NAME
+    .property_names = lv_animimage_property_names,
+    .names_count = sizeof(lv_animimage_property_names) / sizeof(lv_property_name_t),
+#endif
+#endif
 };
 
 /**********************
@@ -72,7 +109,7 @@ void lv_animimg_set_src(lv_obj_t * obj, const void * dsc[], size_t num)
     lv_animimg_t * animimg = (lv_animimg_t *)obj;
     animimg->dsc = dsc;
     animimg->pic_count = num;
-    lv_anim_set_values(&animimg->anim, 0, (int32_t)num - 1);
+    lv_anim_set_values(&animimg->anim, 0, (int32_t)num);
 }
 
 void lv_animimg_start(lv_obj_t * obj)
@@ -91,7 +128,7 @@ void lv_animimg_set_duration(lv_obj_t * obj, uint32_t duration)
     LV_ASSERT_OBJ(obj, MY_CLASS);
     lv_animimg_t * animimg = (lv_animimg_t *)obj;
     lv_anim_set_duration(&animimg->anim, duration);
-    lv_anim_set_playback_delay(&animimg->anim, duration);
+    lv_anim_set_reverse_delay(&animimg->anim, duration);
 }
 
 void lv_animimg_set_repeat_count(lv_obj_t * obj, uint32_t count)
@@ -133,6 +170,13 @@ uint32_t lv_animimg_get_repeat_count(lv_obj_t * obj)
     return lv_anim_get_repeat_count(&animimg->anim);
 }
 
+lv_anim_t * lv_animimg_get_anim(lv_obj_t * obj)
+{
+    LV_ASSERT_OBJ(obj, MY_CLASS);
+    lv_animimg_t * animimg = (lv_animimg_t *)obj;
+    return &animimg->anim;
+}
+
 /**********************
  *   STATIC FUNCTIONS
  **********************/
@@ -156,12 +200,16 @@ static void lv_animimg_constructor(const lv_obj_class_t * class_p, lv_obj_t * ob
     lv_anim_set_repeat_count(&animimg->anim, LV_ANIM_REPEAT_INFINITE);
 }
 
-static void index_change(lv_obj_t * obj, int32_t index)
+static void index_change(lv_obj_t * obj, int32_t idx)
 {
-    int32_t idx;
     lv_animimg_t * animimg = (lv_animimg_t *)obj;
 
-    idx = index % animimg->pic_count;
+    if(animimg->dsc == NULL) {
+        LV_LOG_WARN("dsc is null");
+        return;
+    }
+
+    if(idx >= animimg->pic_count) idx =  animimg->pic_count - 1;
 
     lv_image_set_src(obj, animimg->dsc[idx]);
 }

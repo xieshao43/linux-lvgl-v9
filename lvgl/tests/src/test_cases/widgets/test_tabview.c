@@ -1,8 +1,8 @@
 #if LV_BUILD_TEST
 #include "../lvgl.h"
+#include "../../lvgl_private.h"
 
 #include "unity/unity.h"
-#include "lv_test_indev.h"
 
 void setUp(void);
 void tearDown(void);

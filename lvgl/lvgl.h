@@ -13,10 +13,7 @@ extern "C" {
 /***************************
  * CURRENT VERSION OF LVGL
  ***************************/
-#define LVGL_VERSION_MAJOR 9
-#define LVGL_VERSION_MINOR 0
-#define LVGL_VERSION_PATCH 0
-#define LVGL_VERSION_INFO  ""
+#include "lv_version.h"
 
 /*********************
  *      INCLUDES
@@ -35,12 +32,18 @@ extern "C" {
 #include "src/misc/lv_anim_timeline.h"
 #include "src/misc/lv_profiler_builtin.h"
 #include "src/misc/lv_rb.h"
+#include "src/misc/lv_utils.h"
+#include "src/misc/lv_iter.h"
+#include "src/misc/lv_circle_buf.h"
+#include "src/misc/lv_tree.h"
+#include "src/misc/cache/lv_image_cache.h"
 
 #include "src/tick/lv_tick.h"
 
 #include "src/core/lv_obj.h"
 #include "src/core/lv_group.h"
 #include "src/indev/lv_indev.h"
+#include "src/indev/lv_indev_gesture.h"
 #include "src/core/lv_refr.h"
 #include "src/display/lv_display.h"
 
@@ -65,6 +68,7 @@ extern "C" {
 #include "src/widgets/led/lv_led.h"
 #include "src/widgets/line/lv_line.h"
 #include "src/widgets/list/lv_list.h"
+#include "src/widgets/lottie/lv_lottie.h"
 #include "src/widgets/menu/lv_menu.h"
 #include "src/widgets/msgbox/lv_msgbox.h"
 #include "src/widgets/roller/lv_roller.h"
@@ -89,6 +93,10 @@ extern "C" {
 #include "src/others/observer/lv_observer.h"
 #include "src/others/ime/lv_ime_pinyin.h"
 #include "src/others/file_explorer/lv_file_explorer.h"
+#include "src/others/font_manager/lv_font_manager.h"
+#include "src/others/xml/lv_xml.h"
+#include "src/others/xml/lv_xml_component.h"
+#include "src/others/test/lv_test.h"
 
 #include "src/libs/barcode/lv_barcode.h"
 #include "src/libs/bin_decoder/lv_bin_decoder.h"
@@ -105,19 +113,28 @@ extern "C" {
 #include "src/libs/rlottie/lv_rlottie.h"
 #include "src/libs/ffmpeg/lv_ffmpeg.h"
 #include "src/libs/tiny_ttf/lv_tiny_ttf.h"
+#include "src/libs/svg/lv_svg.h"
+#include "src/libs/svg/lv_svg_render.h"
 
 #include "src/layouts/lv_layout.h"
 
-#include "src/draw/lv_draw.h"
+#include "src/draw/lv_draw_buf.h"
 #include "src/draw/lv_draw_vector.h"
+#include "src/draw/sw/lv_draw_sw_utils.h"
 
 #include "src/themes/lv_theme.h"
 
 #include "src/drivers/lv_drivers.h"
 
-#include "src/lv_api_map.h"
+#include "src/lv_api_map_v8.h"
+#include "src/lv_api_map_v9_0.h"
+#include "src/lv_api_map_v9_1.h"
 
-#include "src/core/lv_global.h"
+#if LV_USE_PRIVATE_API
+#include "src/lvgl_private.h"
+#endif
+
+
 /*********************
  *      DEFINES
  *********************/

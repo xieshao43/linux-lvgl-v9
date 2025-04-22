@@ -5,7 +5,7 @@
 /*********************
  *      INCLUDES
  *********************/
-#include "lv_mem.h"
+#include "lv_mem_private.h"
 #include "lv_string.h"
 #include "../misc/lv_assert.h"
 #include "../misc/lv_log.h"
@@ -74,9 +74,9 @@ void * lv_malloc(size_t size)
 #if LV_LOG_LEVEL <= LV_LOG_LEVEL_INFO
         lv_mem_monitor_t mon;
         lv_mem_monitor(&mon);
-        LV_LOG_INFO("used: %6d (%3d %%), frag: %3d %%, biggest free: %6d",
-                    (int)(mon.total_size - mon.free_size), mon.used_pct, mon.frag_pct,
-                    (int)mon.free_biggest_size);
+        LV_LOG_INFO("used: %zu (%3d %%), frag: %3d %%, biggest free: %zu",
+                    mon.total_size - mon.free_size, mon.used_pct, mon.frag_pct,
+                    mon.free_biggest_size);
 #endif
         return NULL;
     }
@@ -103,9 +103,9 @@ void * lv_malloc_zeroed(size_t size)
 #if LV_LOG_LEVEL <= LV_LOG_LEVEL_INFO
         lv_mem_monitor_t mon;
         lv_mem_monitor(&mon);
-        LV_LOG_INFO("used: %6d (%3d %%), frag: %3d %%, biggest free: %6d",
-                    (int)(mon.total_size - mon.free_size), mon.used_pct, mon.frag_pct,
-                    (int)mon.free_biggest_size);
+        LV_LOG_INFO("used: %zu (%3d %%), frag: %3d %%, biggest free: %zu",
+                    mon.total_size - mon.free_size, mon.used_pct, mon.frag_pct,
+                    mon.free_biggest_size);
 #endif
         return NULL;
     }
@@ -116,6 +116,17 @@ void * lv_malloc_zeroed(size_t size)
     return alloc;
 }
 
+void * lv_calloc(size_t num, size_t size)
+{
+    LV_TRACE_MEM("allocating number of %zu each %zu bytes", num, size);
+    return lv_malloc_zeroed(num * size);
+}
+
+void * lv_zalloc(size_t size)
+{
+    return lv_malloc_zeroed(size);
+}
+
 void lv_free(void * data)
 {
     LV_TRACE_MEM("freeing %p", data);
@@ -123,6 +134,15 @@ void lv_free(void * data)
     if(data == NULL) return;
 
     lv_free_core(data);
+}
+
+void * lv_reallocf(void * data_p, size_t new_size)
+{
+    void * new = lv_realloc(data_p, new_size);
+    if(!new) {
+        lv_free(data_p);
+    }
+    return new;
 }
 
 void * lv_realloc(void * data_p, size_t new_size)
