@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <errno.h>
+#include <fcntl.h> 
 
 // Notification dimensions
 #define NOTIF_MIN_WIDTH 125
@@ -84,6 +85,19 @@ static void anim_y_cb(void *var, int32_t val) {
 static void anim_opa_cb(void *var, int32_t val) {
     lv_obj_set_style_text_opa(var, val, 0);
 }
+
+static void hide_console_cursor(void) {
+    static bool cursor_hidden = false;
+    if (!cursor_hidden) {
+        int fd = open("/dev/tty1", O_WRONLY);
+        if (fd >= 0) {
+            write(fd, "\033[?25l", 6);
+            close(fd);
+            cursor_hidden = true;
+        }
+    }
+}
+
 
 // 使用socket API获取IP地址，替代shell命令
 static bool get_ip_address(const char *interface, char *ip_buffer, size_t buffer_size) {
@@ -167,6 +181,7 @@ static bool get_ip_address_from_interfaces(char *ip_buffer, size_t buffer_size, 
 
 // 优化后的多接口IP地址获取函数 - 修改为检查所有接口并记录它们的状态
 static void check_all_wifi_interfaces(void) {
+    hide_console_cursor();
     bool status_changed = false;
     bool any_connected = false;
     
@@ -692,4 +707,45 @@ void wifi_notification_update_interface(wifi_state_t state, const char *ssid, co
         // 如果通知已展开且可见，但没有状态变化，仍然更新显示内容
         bubble_expand_anim();
     }
+}
+
+/**
+ * 释放WiFi通知系统资源
+ */
+void wifi_notification_deinit(void) {
+    // 先隐藏通知（如果可见）
+    if (is_visible) {
+        wifi_notification_hide();
+    }
+    
+    // 删除自动隐藏定时器
+    if (auto_hide_timer) {
+        lv_timer_delete(auto_hide_timer);
+        auto_hide_timer = NULL;
+    }
+    
+    // 停止所有相关动画
+    if (notif_bubble) {
+        lv_anim_del(notif_bubble, NULL);
+        if (notif_label) lv_anim_del(notif_label, NULL);
+        if (notif_icon) lv_anim_del(notif_icon, NULL);
+        if (notif_status) lv_anim_del(notif_status, NULL);
+    }
+    
+    // 删除通知气泡及其所有子部件
+    if (notif_bubble) {
+        lv_obj_delete(notif_bubble);
+        notif_bubble = NULL;
+        notif_icon = NULL;
+        notif_label = NULL;
+        notif_status = NULL;
+    }
+    
+    // 重置状态标志
+    is_expanded = false;
+    is_visible = false;
+    
+    #if UI_DEBUG_ENABLED
+    printf("[WIFI] Notification system deinitialized\n");
+    #endif
 }

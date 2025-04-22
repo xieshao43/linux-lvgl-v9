@@ -19,6 +19,9 @@ static time_t last_check_time = 0;
 static const int CHECK_INTERVAL = 5; // 检查间隔(秒)
 static bool wifi_initialized = false;
 
+// 添加静态变量用于跟踪WiFi检查定时器
+static lv_timer_t *wifi_check_timer = NULL;
+
 // Allwinner H3相关配置
 // 修改为支持多个WiFi接口
 #define MAX_WIFI_INTERFACES 2
@@ -328,7 +331,7 @@ void wifi_manager_init(void) {
     last_check_time = time(NULL);
     
     // 创建定时器定期检查WiFi状态
-    lv_timer_create(wifi_check_timer_cb, CHECK_INTERVAL * 1000, NULL);
+    wifi_check_timer = lv_timer_create(wifi_check_timer_cb, CHECK_INTERVAL * 1000, NULL);
     
     wifi_initialized = true;
     
@@ -366,4 +369,24 @@ void wifi_manager_simulate_state_change(void) {
             wifi_status_changed_callback(sim_state, NULL);
             break;
     }
+}
+
+// 释放WiFi管理器资源
+void wifi_manager_deinit(void) {
+    if (!wifi_initialized) return;
+    
+    // 停止WiFi检查定时器
+    if (wifi_check_timer != NULL) {
+        lv_timer_delete(wifi_check_timer);
+        wifi_check_timer = NULL;
+    }
+    
+    // 释放WiFi通知系统资源
+    wifi_notification_deinit();
+    
+    wifi_initialized = false;
+    
+    #if UI_DEBUG_ENABLED
+    printf("[WIFI] Manager deinitialized\n");
+    #endif
 }

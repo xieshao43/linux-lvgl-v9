@@ -19,4 +19,10 @@ void wifi_manager_check_now(void);
  */
 void wifi_manager_simulate_state_change(void);
 
+/**
+ * 释放WiFi管理器资源
+ * 停止WiFi状态检查定时器并清理相关资源
+ */
+void wifi_manager_deinit(void);
+
 #endif // WIFI_MANAGER_H

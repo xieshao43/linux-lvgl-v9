@@ -4244,7 +4244,7 @@ lvgl/CMakeFiles/lvgl.dir/src/draw/lv_image_buf.c.o
  /quark_lvgl_9.0/lvgl/src/misc/lv_types.h
  /quark_lvgl_9.0/lvgl/src/osal/lv_os.h
  /quark_lvgl_9.0/lvgl/src/lv_conf_internal.h
- /quark_lvgl_9.0/lvgl/src/stdlib/lv_mem.h
+ /quark_lvgl_9.0/lvgl/src/stdlib/
  /quark_lvgl_9.0/lvgl/src/stdlib/lv_string.h
  /quark_lvgl_9.0/lvgl/src/draw/lv_draw.h
  /quark_lvgl_9.0/lvgl/src/draw/lv_draw_arc.h

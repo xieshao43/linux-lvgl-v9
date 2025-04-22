@@ -42,7 +42,7 @@
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
     /*Size of the memory available for `lv_malloc()` in bytes (>= 2kB)*/
-    #define LV_MEM_SIZE (256 * 1024U)          /*[bytes]*/
+    #define LV_MEM_SIZE (512 * 1024U)          /*[bytes] - 增加到512KB*/
 
     /*Size of the memory expand for `lv_malloc()` in bytes*/
     #define LV_MEM_POOL_EXPAND_SIZE 1
@@ -61,7 +61,7 @@
  *====================*/
 
 /*Default display refresh, input device read and animation step period.*/
-#define LV_DEF_REFR_PERIOD  15      /*[ms]*/
+#define LV_DEF_REFR_PERIOD  20      /*[ms] - 从15ms增加到20ms*/
 
 /*Default Dot Per Inch. Used to initialize default sizes such as widgets sized, style paddings.
  *(Not so important, you can adjust it to modify default sizes and spaces)*/
@@ -107,7 +107,7 @@
      * and can't be drawn in chunks. */
 
     /*The target buffer size for simple layer chunks.*/
-    #define LV_DRAW_SW_LAYER_SIMPLE_BUF_SIZE          (32 * 1024)   /*[bytes]*/
+    #define LV_DRAW_SW_LAYER_SIMPLE_BUF_SIZE          (64 * 1024)   /*[bytes]*/
 
     /* 0: use a simple renderer capable of drawing only simple rectangles with gradient, images, texts, and straight lines only
      * 1: use a complex renderer capable of drawing rounded corners, shadow, skew lines, and arcs too */
@@ -854,8 +854,8 @@
 #if LV_USE_LINUX_FBDEV
     #define LV_LINUX_FBDEV_BSD           0
     #define LV_LINUX_FBDEV_RENDER_MODE   LV_DISPLAY_RENDER_MODE_PARTIAL
-    #define LV_LINUX_FBDEV_BUFFER_COUNT  2
-    #define LV_LINUX_FBDEV_BUFFER_SIZE   60
+    #define LV_LINUX_FBDEV_BUFFER_COUNT  3         // 增加到3
+    #define LV_LINUX_FBDEV_BUFFER_SIZE   240       // 增加到240
 #endif
 
 /*Use Nuttx to open window and handle touchscreen*/
