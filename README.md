@@ -1,5 +1,7 @@
 # linux_lvgl_V9.2！
 
+Now u could enjoy u minibord in lvgl world eassily
+
 # Install steps:
 
    mkdir build and cd build
