@@ -1,5 +1,5 @@
 /**
- * @file struct _lv_obj_tree.h
+ * @file lv_obj_tree.h
  *
  */
 
@@ -13,8 +13,6 @@ extern "C" {
 /*********************
  *      INCLUDES
  *********************/
-#include <stddef.h>
-#include <stdbool.h>
 #include "../misc/lv_types.h"
 #include "../misc/lv_anim.h"
 #include "../display/lv_display.h"
@@ -195,6 +193,71 @@ uint32_t lv_obj_get_child_count(const lv_obj_t * obj);
 
 uint32_t lv_obj_get_child_count_by_type(const lv_obj_t * obj, const lv_obj_class_t * class_p);
 
+#if LV_USE_OBJ_NAME
+
+/**
+ * Set a name for a widget. The name will be allocated.
+ * @param obj       pointer to an object
+ * @param name      the name to set
+ */
+void lv_obj_set_name(lv_obj_t * obj, const char * name);
+
+/**
+ * Set a name for a widget. Only a pointer will be saved.
+ * @param obj       pointer to an object
+ * @param name      the name to set
+ */
+void lv_obj_set_name_static(lv_obj_t * obj, const char * name);
+
+/**
+ * Get the set name as it was set
+ * @param obj       pointer to an object
+ * @return          get the set name or NULL if it wasn't set yet
+ */
+const char * lv_obj_get_name(const lv_obj_t * obj);
+
+/**
+ * Get the set name or craft a name automatically if there is no set name.
+ * The crafted names are built like <widget type> + "_" + <index of the given type>
+ * For example if a parent has two button and two label children the names will be
+ * "lv_button_0", "lv_button1", "lv_label_0", "lv_label_1"
+ * The <widget name> comes from the `class->name` field.
+ * The index is 0 based.
+ * @param obj       pointer to an object
+ * @param buf       buffer to store the name
+ * @param buf_size  the size of the buffer in bytes
+ */
+void lv_obj_get_name_resolved(const lv_obj_t * obj, char buf[], size_t buf_size);
+
+/**
+ * Find a child with a given name on a parent. This child doesn't have to be the
+ * direct child of the parent. First direct children of the parent will be checked,
+ * and the direct children of the first child, etc. (Breadth-first search).
+ *
+ * If the name of a widget was not set a name like "lv_button_1" will
+ * be created for it using `lv_obj_get_name_resolved`.
+ *
+ * @param parent        the widget where the search should start
+ * @return              the found widget or NULL if not found.
+ */
+lv_obj_t * lv_obj_find_by_name(const lv_obj_t * parent, const char * name);
+
+/**
+ * Get an object by name. The name can be a path too, for example
+ * "main_container/lv_button_1/label".
+ * In this case the first part of the name-path should be the direct child of the parent,
+ * the second part, should the direct child of first one, etc.
+ *
+ * If the name of a widget was not set a name like "lv_button_1" will
+ * be created for it using `lv_obj_get_name_resolved`.
+ *
+ * @param parent        the widget where the search should start
+ * @return              the found widget or NULL if not found.
+ */
+lv_obj_t * lv_obj_get_child_by_name(const lv_obj_t * parent, const char * name_path);
+
+#endif /*LV_USE_OBJ_NAME*/
+
 /**
  * Get the index of a child.
  * @param obj       pointer to an object
@@ -226,7 +289,7 @@ void lv_obj_tree_walk(lv_obj_t * start_obj, lv_obj_tree_walk_cb_t cb, void * use
  * Iterate through all children of any object and print their ID.
  * @param start_obj     start integrating from this object
  */
-void lv_obj_dump_tree(lv_obj_t * start_ob);
+void lv_obj_dump_tree(lv_obj_t * start_obj);
 
 /**********************
  *      MACROS

@@ -17,7 +17,7 @@ extern "C" {
 
 #if LV_USE_LABEL != 0
 
-#include <stdarg.h>
+#include "../../misc/lv_types.h"
 #include "../../core/lv_obj.h"
 #include "../../font/lv_font.h"
 #include "../../font/lv_symbol_def.h"
@@ -45,46 +45,23 @@ LV_EXPORT_CONST_INT(LV_LABEL_TEXT_SELECTION_OFF);
  **********************/
 
 /** Long mode behaviors. Used in 'lv_label_ext_t'*/
-enum _lv_label_long_mode_t {
-    LV_LABEL_LONG_WRAP,             /**< Keep the object width, wrap lines longer than object width and expand the object height*/
-    LV_LABEL_LONG_DOT,              /**< Keep the size and write dots at the end if the text is too long*/
-    LV_LABEL_LONG_SCROLL,           /**< Keep the size and roll the text back and forth*/
-    LV_LABEL_LONG_SCROLL_CIRCULAR,  /**< Keep the size and roll the text circularly*/
-    LV_LABEL_LONG_CLIP,             /**< Keep the size and clip the text out of it*/
+typedef enum {
+    LV_LABEL_LONG_MODE_WRAP,             /**< Keep the object width, wrap lines longer than object width and expand the object height*/
+    LV_LABEL_LONG_MODE_DOTS,             /**< Keep the size and write dots at the end if the text is too long*/
+    LV_LABEL_LONG_MODE_SCROLL,           /**< Keep the size and roll the text back and forth*/
+    LV_LABEL_LONG_MODE_SCROLL_CIRCULAR,  /**< Keep the size and roll the text circularly*/
+    LV_LABEL_LONG_MODE_CLIP,             /**< Keep the size and clip the text out of it*/
+} lv_label_long_mode_t;
+
+#if LV_USE_OBJ_PROPERTY
+enum {
+    LV_PROPERTY_ID(LABEL, TEXT,                   LV_PROPERTY_TYPE_TEXT,      0),
+    LV_PROPERTY_ID(LABEL, LONG_MODE,              LV_PROPERTY_TYPE_INT,       1),
+    LV_PROPERTY_ID(LABEL, TEXT_SELECTION_START,   LV_PROPERTY_TYPE_INT,       2),
+    LV_PROPERTY_ID(LABEL, TEXT_SELECTION_END,     LV_PROPERTY_TYPE_INT,       3),
+    LV_PROPERTY_LABEL_END,
 };
-
-#ifdef DOXYGEN
-typedef _lv_label_long_mode_t lv_label_long_mode_t;
-#else
-typedef uint8_t lv_label_long_mode_t;
-#endif /*DOXYGEN*/
-
-typedef struct {
-    lv_obj_t obj;
-    char * text;
-    union {
-        char * tmp_ptr; /*Pointer to the allocated memory containing the character replaced by dots*/
-        char tmp[LV_LABEL_DOT_NUM + 1]; /*Directly store the characters if <=4 characters*/
-    } dot;
-    uint32_t dot_end;  /*The real text length, used in dot mode*/
-
-#if LV_LABEL_LONG_TXT_HINT
-    lv_draw_label_hint_t hint;
 #endif
-
-#if LV_LABEL_TEXT_SELECTION
-    uint32_t sel_start;
-    uint32_t sel_end;
-#endif
-
-    lv_point_t size_cache; /*Text size cache*/
-    lv_point_t offset; /*Text draw position offset*/
-    lv_label_long_mode_t long_mode : 3; /*Determine what to do with the long texts*/
-    uint8_t static_txt : 1;             /*Flag to indicate the text is static*/
-    uint8_t expand : 1;                 /*Ignore real width (used by the library with LV_LABEL_LONG_SCROLL)*/
-    uint8_t dot_tmp_alloc : 1;          /*1: dot is allocated, 0: dot directly holds up to 4 chars*/
-    uint8_t invalid_size_cache : 1;     /*1: Recalculate size and update cache*/
-} lv_label_t;
 
 LV_ATTRIBUTE_EXTERN_DATA extern const lv_obj_class_t lv_label_class;
 
@@ -114,7 +91,11 @@ void lv_label_set_text(lv_obj_t * obj, const char * text);
  * Set a new formatted text for a label. Memory will be allocated to store the text by the label.
  * @param obj           pointer to a label object
  * @param fmt           `printf`-like format
- * @example lv_label_set_text_fmt(label1, "%d user", user_num);
+ *
+ * Example:
+ * @code
+ * lv_label_set_text_fmt(label1, "%d user", user_num);
+ * @endcode
  */
 void lv_label_set_text_fmt(lv_obj_t * obj, const char * fmt, ...) LV_FORMAT_ATTRIBUTE(2, 3);
 
@@ -147,6 +128,14 @@ void lv_label_set_text_selection_start(lv_obj_t * obj, uint32_t index);
  * @param index     character index where selection should end. `LV_LABEL_TEXT_SELECTION_OFF` for no selection
  */
 void lv_label_set_text_selection_end(lv_obj_t * obj, uint32_t index);
+
+/**
+ * Enable the recoloring by in-line commands
+ * @param obj           pointer to a label object
+ * @param en            true: enable recoloring, false: disable
+ * Example: "This is a #ff0000 red# word"
+ */
+void lv_label_set_recolor(lv_obj_t * obj, bool en);
 
 /*=====================
  * Getter functions
@@ -207,12 +196,19 @@ uint32_t lv_label_get_text_selection_start(const lv_obj_t * obj);
  */
 uint32_t lv_label_get_text_selection_end(const lv_obj_t * obj);
 
+/**
+ * @brief Get the recoloring attribute
+ * @param obj       pointer to a label object.
+ * @return          true: recoloring is enabled, false: recoloring is disabled
+ */
+bool lv_label_get_recolor(const lv_obj_t * obj);
+
 /*=====================
  * Other functions
  *====================*/
 
 /**
- * Insert a text to a label. The label text can not be static.
+ * Insert a text to a label. The label text cannot be static.
  * @param obj       pointer to a label object
  * @param pos       character index to insert. Expressed in character index and not byte index.
  *                  0: before first char. LV_LABEL_POS_LAST: after last char.
@@ -221,10 +217,10 @@ uint32_t lv_label_get_text_selection_end(const lv_obj_t * obj);
 void lv_label_ins_text(lv_obj_t * obj, uint32_t pos, const char * txt);
 
 /**
- * Delete characters from a label. The label text can not be static.
+ * Delete characters from a label. The label text cannot be static.
  * @param obj       pointer to a label object
  * @param pos       character index from where to cut. Expressed in character index and not byte index.
- *                  0: start in from of the first character
+ *                  0: start in front of the first character
  * @param cnt       number of characters to cut
  */
 void lv_label_cut_text(lv_obj_t * obj, uint32_t pos, uint32_t cnt);

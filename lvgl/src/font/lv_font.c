@@ -8,7 +8,7 @@
  *********************/
 
 #include "lv_font.h"
-#include "../misc/lv_text.h"
+#include "../misc/lv_text_private.h"
 #include "../misc/lv_utils.h"
 #include "../misc/lv_log.h"
 #include "../misc/lv_assert.h"
@@ -31,6 +31,10 @@
  **********************/
 
 /**********************
+ *  GLOBAL VARIABLES
+ **********************/
+
+/**********************
  * GLOBAL PROTOTYPES
  **********************/
 
@@ -42,16 +46,20 @@
  *   GLOBAL FUNCTIONS
  **********************/
 
-const void * lv_font_get_glyph_bitmap(lv_font_glyph_dsc_t * g_dsc, uint32_t letter,
-                                      lv_draw_buf_t * draw_buf)
+const void * lv_font_get_glyph_bitmap(lv_font_glyph_dsc_t * g_dsc, lv_draw_buf_t * draw_buf)
 {
     const lv_font_t * font_p = g_dsc->resolved_font;
     LV_ASSERT_NULL(font_p);
-    return font_p->get_glyph_bitmap(g_dsc, letter, draw_buf);
+    return font_p->get_glyph_bitmap(g_dsc, draw_buf);
 }
 
 void lv_font_glyph_release_draw_data(lv_font_glyph_dsc_t * g_dsc)
 {
+    LV_ASSERT_NULL(g_dsc);
+    if(!g_dsc->entry) {
+        return;
+    }
+
     const lv_font_t * font = g_dsc->resolved_font;
 
     if(font != NULL && font->release_glyph) {
@@ -72,7 +80,7 @@ bool lv_font_get_glyph_dsc(const lv_font_t * font_p, lv_font_glyph_dsc_t * dsc_o
 
     const lv_font_t * f = font_p;
 
-    dsc_out->resolved_font = NULL;
+    lv_memzero(dsc_out, sizeof(lv_font_glyph_dsc_t));
 
     while(f) {
         bool found = f->get_glyph_dsc(f, dsc_out, letter, f->kerning == LV_FONT_KERNING_NONE ? 0 : letter_next);
@@ -111,7 +119,7 @@ bool lv_font_get_glyph_dsc(const lv_font_t * font_p, lv_font_glyph_dsc_t * dsc_o
     dsc_out->box_h = font_p->line_height;
     dsc_out->ofs_x = 0;
     dsc_out->ofs_y = 0;
-    dsc_out->bpp   = 1;
+    dsc_out->format = LV_FONT_GLYPH_FORMAT_A1;
     dsc_out->is_placeholder = true;
 
     return false;
@@ -123,7 +131,7 @@ uint16_t lv_font_get_glyph_width(const lv_font_t * font, uint32_t letter, uint32
     lv_font_glyph_dsc_t g;
 
     /*Return zero if letter is marker*/
-    if(_lv_text_is_marker(letter)) return 0;
+    if(lv_text_is_marker(letter)) return 0;
 
     lv_font_get_glyph_dsc(font, &g, letter, letter_next);
     return g.adv_w;
@@ -133,6 +141,31 @@ void lv_font_set_kerning(lv_font_t * font, lv_font_kerning_t kerning)
 {
     LV_ASSERT_NULL(font);
     font->kerning = kerning;
+}
+
+int32_t lv_font_get_line_height(const lv_font_t * font)
+{
+    return font->line_height;
+}
+
+
+const lv_font_t * lv_font_get_default(void)
+{
+    return LV_FONT_DEFAULT;
+}
+
+bool lv_font_info_is_equal(const lv_font_info_t * ft_info_1, const lv_font_info_t * ft_info_2)
+{
+    LV_ASSERT_NULL(ft_info_1);
+    LV_ASSERT_NULL(ft_info_2);
+
+    bool is_equal = (ft_info_1->size == ft_info_2->size
+                     && ft_info_1->style == ft_info_2->style
+                     && ft_info_1->render_mode == ft_info_2->render_mode
+                     && ft_info_1->kerning == ft_info_2->kerning
+                     && lv_strcmp(ft_info_1->name, ft_info_2->name) == 0);
+
+    return is_equal;
 }
 
 /**********************

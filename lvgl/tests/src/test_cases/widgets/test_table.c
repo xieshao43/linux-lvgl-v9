@@ -1,10 +1,15 @@
 #if LV_BUILD_TEST
 #include "../lvgl.h"
+#include "../../lvgl_private.h"
 
 #include "unity/unity.h"
 
 static lv_obj_t * scr = NULL;
 static lv_obj_t * table = NULL;
+static lv_area_t g_inv_area;
+static int32_t g_inv_count;
+
+static void invalidate_area_event_cb(lv_event_t * e);
 
 void setUp(void)
 {
@@ -15,6 +20,7 @@ void setUp(void)
 void tearDown(void)
 {
     lv_obj_clean(lv_screen_active());
+    lv_display_remove_event_cb_with_user_data(lv_display_get_default(), invalidate_area_event_cb, NULL);
 }
 
 void test_table_should_set_row_count_to_zero(void)
@@ -57,7 +63,7 @@ void test_table_should_identify_cell_with_ctrl(void)
 
     TEST_ASSERT_FALSE(has_ctrl);
 
-    lv_table_add_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
+    lv_table_set_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
     has_ctrl = lv_table_has_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
     TEST_ASSERT_TRUE(has_ctrl);
 }
@@ -66,7 +72,7 @@ void test_table_should_clear_selected_cell_ctrl(void)
 {
     bool has_ctrl = false;
 
-    lv_table_add_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
+    lv_table_set_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
     has_ctrl = lv_table_has_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
     TEST_ASSERT_TRUE(has_ctrl);
 
@@ -79,7 +85,7 @@ void test_table_should_keep_not_selected_cell_ctrl(void)
 {
     bool has_ctrl = false;
 
-    lv_table_add_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT | LV_TABLE_CELL_CTRL_TEXT_CROP);
+    lv_table_set_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT | LV_TABLE_CELL_CTRL_TEXT_CROP);
 
     lv_table_clear_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
     has_ctrl = lv_table_has_cell_ctrl(table, 0, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
@@ -139,33 +145,40 @@ static void draw_part_event_cb(lv_event_t * e)
 
         /*Make the texts in the first cell center aligned*/
         if(row == 0) {
-            if(draw_task->type == LV_DRAW_TASK_TYPE_LABEL) {
-                lv_draw_label_dsc_t * label_draw_dsc = draw_task->draw_dsc;
+            lv_draw_label_dsc_t * label_draw_dsc = lv_draw_task_get_label_dsc(draw_task);
+            if(label_draw_dsc) {
                 label_draw_dsc->align = LV_TEXT_ALIGN_CENTER;
             }
-            if(draw_task->type == LV_DRAW_TASK_TYPE_FILL) {
-                lv_draw_rect_dsc_t * rect_draw_dsc = draw_task->draw_dsc;
-                rect_draw_dsc->bg_color = lv_color_mix(lv_palette_main(LV_PALETTE_BLUE), rect_draw_dsc->bg_color, LV_OPA_20);
-                rect_draw_dsc->bg_opa = LV_OPA_COVER;
+            lv_draw_fill_dsc_t * fill_draw_dsc = lv_draw_task_get_fill_dsc(draw_task);
+            if(fill_draw_dsc) {
+                fill_draw_dsc->color = lv_color_mix(lv_palette_main(LV_PALETTE_BLUE), fill_draw_dsc->color, LV_OPA_20);
+                fill_draw_dsc->opa = LV_OPA_COVER;
             }
         }
         /*In the first column align the texts to the right*/
         else if(col == 0) {
-            if(draw_task->type == LV_DRAW_TASK_TYPE_LABEL) {
-                lv_draw_label_dsc_t * label_draw_dsc = draw_task->draw_dsc;
+            lv_draw_label_dsc_t * label_draw_dsc = lv_draw_task_get_label_dsc(draw_task);
+            if(label_draw_dsc) {
                 label_draw_dsc->align = LV_TEXT_ALIGN_RIGHT;
             }
         }
 
         /*Make every 2nd row grayish*/
         if((row != 0 && row % 2) == 0) {
-            if(draw_task->type == LV_DRAW_TASK_TYPE_FILL) {
-                lv_draw_rect_dsc_t * rect_draw_dsc = draw_task->draw_dsc;
-                rect_draw_dsc->bg_color = lv_color_mix(lv_palette_main(LV_PALETTE_GREY), rect_draw_dsc->bg_color, LV_OPA_10);
-                rect_draw_dsc->bg_opa = LV_OPA_COVER;
+            lv_draw_fill_dsc_t * fill_draw_dsc = lv_draw_task_get_fill_dsc(draw_task);
+            if(fill_draw_dsc) {
+                fill_draw_dsc->color = lv_color_mix(lv_palette_main(LV_PALETTE_GREY), fill_draw_dsc->color, LV_OPA_10);
+                fill_draw_dsc->opa = LV_OPA_COVER;
             }
         }
     }
+}
+
+static void invalidate_area_event_cb(lv_event_t * e)
+{
+    lv_area_t * inv = lv_event_get_param(e);
+    lv_area_copy(&g_inv_area, inv);
+    g_inv_count++;
 }
 
 void test_table_rendering(void)
@@ -181,13 +194,13 @@ void test_table_rendering(void)
     lv_table_set_column_width(table, 1, 60);
     lv_table_set_column_width(table, 2, 100);
 
-    lv_table_add_cell_ctrl(table, 0, 1, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
+    lv_table_set_cell_ctrl(table, 0, 1, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
     lv_table_set_cell_value(table, 0, 1, "2 cells are merged");
 
-    lv_table_add_cell_ctrl(table, 1, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
-    lv_table_add_cell_ctrl(table, 1, 1, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
-    lv_table_add_cell_ctrl(table, 1, 2, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
-    lv_table_add_cell_ctrl(table, 1, 3, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
+    lv_table_set_cell_ctrl(table, 1, 0, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
+    lv_table_set_cell_ctrl(table, 1, 1, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
+    lv_table_set_cell_ctrl(table, 1, 2, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
+    lv_table_set_cell_ctrl(table, 1, 3, LV_TABLE_CELL_CTRL_MERGE_RIGHT);
     lv_table_set_cell_value(table, 1, 0, "5 cells are merged");
 
     uint32_t i;
@@ -198,10 +211,35 @@ void test_table_rendering(void)
     lv_table_set_cell_value_fmt(table, 2, 3, "Multi\nline text");
     lv_table_set_cell_value_fmt(table, 2, 4, "Very long text wrapped automatically");
 
-    lv_table_add_cell_ctrl(table, 4, 3, LV_TABLE_CELL_CTRL_TEXT_CROP);
+    lv_table_set_cell_ctrl(table, 4, 3, LV_TABLE_CELL_CTRL_TEXT_CROP);
     lv_table_set_cell_value_fmt(table, 4, 3, "crop crop crop crop crop crop crop crop ");
 
     TEST_ASSERT_EQUAL_SCREENSHOT("widgets/table_1.png");
+
+    lv_refr_now(NULL);
+    lv_area_set(&g_inv_area, 0, 0, 0, 0);
+    g_inv_count = 0;
+    lv_display_add_event_cb(lv_display_get_default(), invalidate_area_event_cb, LV_EVENT_INVALIDATE_AREA, NULL);
+    lv_table_set_cell_value(table, 1, 0, "changed");
+    TEST_ASSERT_EQUAL_INT32(1, g_inv_count);
+    int32_t merged_col_width = lv_table_get_column_width(table, 0) + lv_table_get_column_width(table, 1)
+                               + lv_table_get_column_width(table, 2) + lv_table_get_column_width(table, 3)
+                               + lv_table_get_column_width(table, 4);
+
+#if LV_DRAW_TRANSFORM_USE_MATRIX
+    /**
+     * From `lv_obj_pos`:
+     *
+     * When using the global matrix, the vertex coordinates of clip_area lose precision after transformation,
+     * which can be solved by expanding the redrawing area.
+     * lv_area_increase(&area_tmp, 5, 5);
+     *
+     * This accomodates for this specific calculation.
+     */
+    TEST_ASSERT_EQUAL_INT32(lv_area_get_width(&g_inv_area), merged_col_width + 10);
+#else
+    TEST_ASSERT_EQUAL_INT32(lv_area_get_width(&g_inv_area), merged_col_width);
+#endif
 }
 
 /* See #3120 for context */
@@ -262,6 +300,54 @@ void test_table_should_reduce_cells_with_more_than_one_row(void)
             lv_table_set_cell_value(table, row_idx, col_idx, "00");
         }
     }
+}
+
+void test_table_should_set_selected_cell(void)
+{
+    lv_table_set_row_count(table, 2);
+    lv_table_set_column_count(table, 2);
+
+    lv_table_set_selected_cell(table, 1, 1);
+
+    uint32_t selected_row = 0;
+    uint32_t selected_column = 0;
+
+    lv_table_get_selected_cell(table, &selected_row, &selected_column);
+
+    TEST_ASSERT_EQUAL_UINT32(1, selected_row);
+    TEST_ASSERT_EQUAL_UINT32(1, selected_column);
+}
+
+void test_table_cell_select_should_not_exceed_table_bounds(void)
+{
+    lv_table_set_row_count(table, 2);
+    lv_table_set_column_count(table, 2);
+
+    lv_table_set_selected_cell(table, 2, 2);
+
+    uint32_t selected_row = 0;
+    uint32_t selected_column = 0;
+
+    lv_table_get_selected_cell(table, &selected_row, &selected_column);
+
+    TEST_ASSERT_EQUAL_UINT32(1, selected_row);
+    TEST_ASSERT_EQUAL_UINT32(1, selected_column);
+}
+
+void test_table_cell_select_should_not_allow_set_on_table_with_no_rows(void)
+{
+    lv_table_set_row_count(table, 0);
+    lv_table_set_column_count(table, 5);
+
+    lv_table_set_selected_cell(table, 4, 4);
+
+    uint32_t selected_row = 0;
+    uint32_t selected_column = 0;
+
+    lv_table_get_selected_cell(table, &selected_row, &selected_column);
+
+    TEST_ASSERT_EQUAL_UINT32(LV_TABLE_CELL_NONE, selected_row);
+    TEST_ASSERT_EQUAL_UINT32(LV_TABLE_CELL_NONE, selected_column);
 }
 
 #endif

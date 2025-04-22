@@ -6,7 +6,8 @@
 /*********************
  *      INCLUDES
  *********************/
-#include "lv_tileview.h"
+#include "lv_tileview_private.h"
+#include "../../core/lv_obj_class_private.h"
 #include "../../indev/lv_indev.h"
 #include "../../indev/lv_indev_private.h"
 #if LV_USE_TILEVIEW
@@ -34,14 +35,14 @@ const lv_obj_class_t lv_tileview_class = {
     .constructor_cb = lv_tileview_constructor,
     .base_class = &lv_obj_class,
     .instance_size = sizeof(lv_tileview_t),
-    .name = "tileview",
+    .name = "lv_tileview",
 };
 
 const lv_obj_class_t lv_tileview_tile_class = {
     .constructor_cb = lv_tileview_tile_constructor,
     .base_class = &lv_obj_class,
     .instance_size = sizeof(lv_tileview_tile_t),
-    .name = "tile",
+    .name = "lv_tile",
 };
 
 /**********************
@@ -70,8 +71,7 @@ lv_obj_t * lv_tileview_add_tile(lv_obj_t * tv, uint8_t col_id, uint8_t row_id, l
 
     lv_obj_t * obj = lv_obj_class_create_obj(&lv_tileview_tile_class, tv);
     lv_obj_class_init_obj(obj);
-    lv_obj_set_pos(obj, col_id * lv_obj_get_content_width(tv),
-                   row_id * lv_obj_get_content_height(tv));
+    lv_obj_set_pos(obj, lv_pct(col_id * 100), lv_pct(row_id * 100));
 
     lv_tileview_tile_t * tile = (lv_tileview_tile_t *)obj;
     tile->dir = dir;
@@ -133,11 +133,10 @@ static void lv_tileview_constructor(const lv_obj_class_t * class_p, lv_obj_t * o
 {
     LV_UNUSED(class_p);
     lv_obj_set_size(obj, LV_PCT(100), LV_PCT(100));
-    lv_obj_add_event_cb(obj, tileview_event_cb, LV_EVENT_ALL, NULL);
+    lv_obj_add_event_cb(obj, tileview_event_cb, LV_EVENT_SCROLL_END, NULL);
     lv_obj_add_flag(obj, LV_OBJ_FLAG_SCROLL_ONE);
     lv_obj_set_scroll_snap_x(obj, LV_SCROLL_SNAP_CENTER);
     lv_obj_set_scroll_snap_y(obj, LV_SCROLL_SNAP_CENTER);
-
 }
 
 static void lv_tileview_tile_constructor(const lv_obj_class_t * class_p, lv_obj_t * obj)

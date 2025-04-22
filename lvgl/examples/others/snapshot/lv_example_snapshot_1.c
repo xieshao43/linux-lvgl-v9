@@ -7,13 +7,13 @@ static void event_cb(lv_event_t * e)
     lv_obj_t * img = lv_event_get_target(e);
 
     if(snapshot_obj) {
-        lv_image_dsc_t * snapshot = (void *)lv_image_get_src(snapshot_obj);
+        lv_draw_buf_t * snapshot = (lv_draw_buf_t *)lv_image_get_src(snapshot_obj);
         if(snapshot) {
-            lv_snapshot_free(snapshot);
+            lv_draw_buf_destroy(snapshot);
         }
 
         /*Update the snapshot, we know parent of object is the container.*/
-        snapshot = lv_snapshot_take(img->parent, LV_COLOR_FORMAT_ARGB8888);
+        snapshot = lv_snapshot_take(lv_obj_get_parent(img), LV_COLOR_FORMAT_ARGB8888);
         if(snapshot == NULL)
             return;
         lv_image_set_src(snapshot_obj, snapshot);

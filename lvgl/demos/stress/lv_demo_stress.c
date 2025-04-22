@@ -32,7 +32,7 @@ static void obj_test_task_cb(lv_timer_t * tmr);
  **********************/
 static lv_obj_t * main_page;
 static lv_obj_t * ta;
-static uint32_t mem_free_start = 0;
+static size_t mem_free_start = 0;
 static int16_t g_state = -1;
 
 /**********************
@@ -78,7 +78,7 @@ static void obj_test_task_cb(lv_timer_t * tmr)
 
                 if(mem_free_start == 0)  mem_free_start = mon.free_size;
 
-                LV_LOG_USER("mem leak since start: %" LV_PRIu32 ", frag: %3d %%", mem_free_start - mon.free_size, mon.frag_pct);
+                LV_LOG_USER("mem leak since start: %zu, frag: %3d %%", mem_free_start - mon.free_size, mon.frag_pct);
             }
             break;
         case 0:
@@ -124,7 +124,7 @@ static void obj_test_task_cb(lv_timer_t * tmr)
             lv_anim_set_duration(&a, LV_DEMO_STRESS_TIME_STEP * 2);
             lv_anim_set_exec_cb(&a, set_width_anim);
             lv_anim_set_values(&a, 100, 200);
-            lv_anim_set_playback_duration(&a, LV_DEMO_STRESS_TIME_STEP * 2);
+            lv_anim_set_reverse_duration(&a, LV_DEMO_STRESS_TIME_STEP * 2);
             lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
             lv_anim_start(&a);
 
@@ -146,7 +146,7 @@ static void obj_test_task_cb(lv_timer_t * tmr)
             obj = lv_button_create(main_page);
             lv_obj_set_size(obj, 100, 70);
             lv_obj_set_style_bg_image_src(obj, LV_SYMBOL_DUMMY"Text from\nstyle", 0);
-            lv_obj_delete_async(obj);  /*Delete on next call of `lv_task_handler` (so not now)*/
+            lv_obj_delete_async(obj);  /*Delete on next call of `lv_timer_handler` (so not now)*/
             break;
 
         case 5:
@@ -209,7 +209,7 @@ static void obj_test_task_cb(lv_timer_t * tmr)
             obj = lv_dropdown_create(main_page);
             lv_dropdown_set_options(obj, "Zero\nOne\nTwo\nThree\nFour\nFive\nSix\nSeven\nEight");
             lv_dropdown_open(obj);
-            lv_dropdown_set_selected(obj, 2);
+            lv_dropdown_set_selected(obj, 2, LV_ANIM_ON);
             auto_delete(obj, LV_DEMO_STRESS_TIME_STEP * 3 + 11);
             break;
 
@@ -227,7 +227,7 @@ static void obj_test_task_cb(lv_timer_t * tmr)
             lv_anim_set_values(&a, 180, 400);
             lv_anim_set_duration(&a, LV_DEMO_STRESS_TIME_STEP * 2);
             lv_anim_set_delay(&a, LV_DEMO_STRESS_TIME_STEP + 25);
-            lv_anim_set_playback_duration(&a, LV_DEMO_STRESS_TIME_STEP * 5);
+            lv_anim_set_reverse_duration(&a, LV_DEMO_STRESS_TIME_STEP * 5);
             lv_anim_set_repeat_count(&a, 3);
             lv_anim_set_exec_cb(&a, arc_set_end_angle_anim);
             lv_anim_start(&a);
@@ -299,7 +299,7 @@ static void obj_test_task_cb(lv_timer_t * tmr)
             obj = lv_table_create(main_page);
             lv_table_set_cell_value(obj, 0, 0, "0,0");
             lv_table_set_cell_value_fmt(obj, 3, 0, "%d,%d", 5, 0);
-            lv_table_set_row_cnt(obj, 5);
+            lv_table_set_row_count(obj, 5);
             lv_table_set_cell_value_fmt(obj, 1, 0, "%s", "1,0");
             lv_table_set_cell_value(obj, 1, 3, "1,3");
             break;
@@ -438,7 +438,7 @@ static void auto_delete(lv_obj_t * obj, uint32_t delay)
 
 static void msgbox_delete(lv_timer_t * tmr)
 {
-    lv_msgbox_close(tmr->user_data);
+    lv_msgbox_close(lv_timer_get_user_data(tmr));
 }
 
 static void set_y_anim(void * obj, int32_t v)

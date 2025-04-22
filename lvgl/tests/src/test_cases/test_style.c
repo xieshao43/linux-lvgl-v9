@@ -1,5 +1,6 @@
 #if LV_BUILD_TEST
 #include "../lvgl.h"
+#include "../../lvgl_private.h"
 
 #include "unity/unity.h"
 #include <unistd.h>
@@ -28,7 +29,7 @@ void test_gradient_vertical_misalignment(void)
     lv_anim_set_var(&a, obj);
     lv_anim_set_exec_cb(&a, obj_set_height_helper);
     lv_anim_set_duration(&a, 1000);
-    lv_anim_set_playback_duration(&a, 1000);
+    lv_anim_set_reverse_duration(&a, 1000);
     lv_anim_set_repeat_count(&a, 100);
     lv_anim_set_values(&a, 0, 300);
     lv_anim_start(&a);
@@ -49,13 +50,13 @@ void test_custom_prop_ids(void)
     for(uint32_t i = 0; i < max_props_to_register; i++) {
         lv_style_prop_t prop = lv_style_register_prop(fake_flag);
         /* Should have a higher index than the last built-in prop */
-        TEST_ASSERT_GREATER_THAN(_LV_STYLE_LAST_BUILT_IN_PROP, prop);
+        TEST_ASSERT_GREATER_THAN(LV_STYLE_LAST_BUILT_IN_PROP, prop);
         if(i == 0) {
             /* Should be equal to the first expected index of a custom prop */
-            TEST_ASSERT_EQUAL(_LV_STYLE_NUM_BUILT_IN_PROPS + initial_custom_props, prop);
+            TEST_ASSERT_EQUAL(LV_STYLE_NUM_BUILT_IN_PROPS + initial_custom_props, prop);
         }
         /*We should find our flags*/
-        TEST_ASSERT_EQUAL(fake_flag, _lv_style_prop_lookup_flags(prop));
+        TEST_ASSERT_EQUAL(fake_flag, lv_style_prop_lookup_flags(prop));
         if(fake_flag == 0xff)
             fake_flag = 0;
         else

@@ -6,6 +6,7 @@
 /*********************
  *      INCLUDES
  *********************/
+#include "../../core/lv_obj_class_private.h"
 #include "lv_calendar_header_dropdown.h"
 #if LV_USE_CALENDAR && LV_USE_CALENDAR_HEADER_DROPDOWN
 
@@ -38,7 +39,7 @@ const lv_obj_class_t lv_calendar_header_dropdown_class = {
     .width_def = LV_PCT(100),
     .height_def = LV_SIZE_CONTENT,
     .constructor_cb = my_constructor,
-    .name = "calendar-header-dropdown",
+    .name = "lv_calendar_header_dropdown",
 };
 
 static const char * month_list = "01\n02\n03\n04\n05\n06\n07\n08\n09\n10\n11\n12";
@@ -78,12 +79,12 @@ void lv_calendar_header_dropdown_set_year_list(lv_obj_t * parent, const char * y
     }
 
     /* Search for the year dropdown
-     * Index is 0 because in the header dropdown constructor the year dropdpwn (year_dd)
+     * Index is 0 because in the header dropdown constructor the year dropdown (year_dd)
      * is the first created child of the header */
     const int32_t year_dropdown_index = 0;
     lv_obj_t * year_dropdown = lv_obj_get_child_by_type(header, year_dropdown_index, &lv_dropdown_class);
     if(NULL == year_dropdown) {
-        /* year dropdpwn not found */
+        /* year dropdown not found */
         return;
     }
 
@@ -134,7 +135,7 @@ static void month_event_cb(lv_event_t * e)
     lv_calendar_date_t newd = *d;
     newd.month = sel + 1;
 
-    lv_calendar_set_showed_date(calendar, newd.year, newd.month);
+    lv_calendar_set_month_shown(calendar, newd.year, newd.month);
 }
 
 static void year_event_cb(lv_event_t * e)
@@ -156,7 +157,7 @@ static void year_event_cb(lv_event_t * e)
     lv_calendar_date_t newd = *d;
     newd.year = year - sel;
 
-    lv_calendar_set_showed_date(calendar, newd.year, newd.month);
+    lv_calendar_set_month_shown(calendar, newd.year, newd.month);
 }
 
 static void value_changed_event_cb(lv_event_t * e)
@@ -173,10 +174,10 @@ static void value_changed_event_cb(lv_event_t * e)
     const uint32_t year = (year_p[0] - '0') * 1000 + (year_p[1] - '0') * 100 + (year_p[2] - '0') * 10 +
                           (year_p[3] - '0');
 
-    lv_dropdown_set_selected(year_dd, year - cur_date->year);
+    lv_dropdown_set_selected(year_dd, year - cur_date->year, LV_ANIM_OFF);
 
     lv_obj_t * month_dd = lv_obj_get_child(header, 1);
-    lv_dropdown_set_selected(month_dd, cur_date->month - 1);
+    lv_dropdown_set_selected(month_dd, cur_date->month - 1, LV_ANIM_OFF);
 }
 
 #endif /*LV_USE_CALENDAR_HEADER_ARROW*/

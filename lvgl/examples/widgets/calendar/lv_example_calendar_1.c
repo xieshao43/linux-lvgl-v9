@@ -4,7 +4,7 @@
 static void event_handler(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * obj = lv_event_get_current_target(e);
+    lv_obj_t * obj = (lv_obj_t *)lv_event_get_current_target(e);
 
     if(code == LV_EVENT_VALUE_CHANGED) {
         lv_calendar_date_t date;
@@ -22,7 +22,7 @@ void lv_example_calendar_1(void)
     lv_obj_add_event_cb(calendar, event_handler, LV_EVENT_ALL, NULL);
 
     lv_calendar_set_today_date(calendar, 2021, 02, 23);
-    lv_calendar_set_showed_date(calendar, 2021, 02);
+    lv_calendar_set_month_shown(calendar, 2021, 02);
 
     /*Highlight a few days*/
     static lv_calendar_date_t highlighted_days[3];       /*Only its pointer will be saved so should be static*/

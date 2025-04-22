@@ -57,14 +57,14 @@ static void _vglite_draw_triangle(const lv_area_t * coords, const lv_area_t * cl
  *   GLOBAL FUNCTIONS
  **********************/
 
-void lv_draw_vglite_triangle(lv_draw_unit_t * draw_unit, const lv_draw_triangle_dsc_t * dsc)
+void lv_draw_vglite_triangle(lv_draw_task_t * t, const lv_draw_triangle_dsc_t * dsc)
 {
     if(dsc->bg_opa <= (lv_opa_t)LV_OPA_MIN)
         return;
 
-    lv_layer_t * layer = draw_unit->target_layer;
+    lv_layer_t * layer = t->target_layer;
     lv_area_t clip_area;
-    lv_area_copy(&clip_area, draw_unit->clip_area);
+    lv_area_copy(&clip_area, &t->clip_area);
     lv_area_move(&clip_area, -layer->buf_area.x1, -layer->buf_area.y1);
 
     lv_area_t coords;
@@ -76,7 +76,7 @@ void lv_draw_vglite_triangle(lv_draw_unit_t * draw_unit, const lv_draw_triangle_
     lv_area_move(&coords, -layer->buf_area.x1, -layer->buf_area.y1);
 
     lv_area_t clipped_coords;
-    if(!_lv_area_intersect(&clipped_coords, &coords, &clip_area))
+    if(!lv_area_intersect(&clipped_coords, &coords, &clip_area))
         return; /* Fully clipped, nothing to do */
 
     _vglite_draw_triangle(&coords, &clip_area, dsc);
@@ -97,8 +97,8 @@ static void _vglite_draw_triangle(const lv_area_t * coords, const lv_area_t * cl
     tri_area.x2 = (int32_t)LV_MAX3(dsc->p[0].x, dsc->p[1].x, dsc->p[2].x);
     tri_area.y2 = (int32_t)LV_MAX3(dsc->p[0].y, dsc->p[1].y, dsc->p[2].y);
 
-    uint32_t width = tri_area.x2 - tri_area.x1;
-    uint32_t height = tri_area.y2 - tri_area.y1;
+    uint32_t width = lv_area_get_width(&tri_area);
+    uint32_t height = lv_area_get_height(&tri_area);
 
     /* Init path */
     int32_t triangle_path[] = { /*VG line path*/
@@ -113,9 +113,6 @@ static void _vglite_draw_triangle(const lv_area_t * coords, const lv_area_t * cl
     VGLITE_CHECK_ERROR(vg_lite_init_path(&path, VG_LITE_S32, VG_LITE_HIGH, sizeof(triangle_path), triangle_path,
                                          (vg_lite_float_t)clip_area->x1, (vg_lite_float_t)clip_area->y1,
                                          ((vg_lite_float_t)clip_area->x2) + 1.0f, ((vg_lite_float_t)clip_area->y2) + 1.0f));
-
-    vg_lite_matrix_t matrix;
-    vg_lite_identity(&matrix);
 
     /* Init Color */
     lv_color32_t col32 = lv_color_to_32(dsc->bg_color, dsc->bg_opa);
@@ -134,10 +131,13 @@ static void _vglite_draw_triangle(const lv_area_t * coords, const lv_area_t * cl
 
         /* Gradient Setup */
         vg_lite_uint32_t cnt = LV_MAX(dsc->bg_grad.stops_count, LV_GRADIENT_MAX_STOPS);
+        lv_opa_t bg_opa;
+
         for(uint8_t i = 0; i < cnt; i++) {
             stops[i] = dsc->bg_grad.stops[i].frac;
+            bg_opa = LV_OPA_MIX2(dsc->bg_grad.stops[i].opa, dsc->bg_opa);
 
-            col32[i] = lv_color_to_32(dsc->bg_grad.stops[i].color, dsc->bg_grad.stops[i].opa);
+            col32[i] = lv_color_to_32(dsc->bg_grad.stops[i].color, bg_opa);
             colors[i] = vglite_get_color(col32[i], true);
         }
 
@@ -161,11 +161,11 @@ static void _vglite_draw_triangle(const lv_area_t * coords, const lv_area_t * cl
             vg_lite_scale((float)width / 256.0f, 1.0f, grad_matrix);
         }
 
-        VGLITE_CHECK_ERROR(vg_lite_draw_gradient(vgbuf, &path, VG_LITE_FILL_EVEN_ODD, &matrix, &gradient,
+        VGLITE_CHECK_ERROR(vg_lite_draw_gradient(vgbuf, &path, VG_LITE_FILL_EVEN_ODD, NULL, &gradient,
                                                  VG_LITE_BLEND_SRC_OVER));
     }
     else {
-        VGLITE_CHECK_ERROR(vg_lite_draw(vgbuf, &path, VG_LITE_FILL_EVEN_ODD, &matrix, VG_LITE_BLEND_SRC_OVER, vgcol));
+        VGLITE_CHECK_ERROR(vg_lite_draw(vgbuf, &path, VG_LITE_FILL_EVEN_ODD, NULL, VG_LITE_BLEND_SRC_OVER, vgcol));
     }
 
     vglite_run();
