@@ -4,6 +4,17 @@
 #include <stdint.h>
 #include "../common.h"
 
+#include "../common.h"
+#include "../utils/ui_perf_mgr.h" // 添加性能管理器头文件
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>  // 使用isdigit函数
+#include <math.h>   // 添加math.h头文件，解决fabs函数未声明问题
+#include <fcntl.h>  // 添加fcntl.h，提供O_RDONLY等常量
+#include <unistd.h> // 添加unistd.h，提供read、close函数
+#include <sys/statvfs.h>
+
 /**
  * 初始化数据管理器
  * @param path 存储路径
@@ -12,8 +23,20 @@ void data_manager_init(const char *path);
 
 /**
  * 更新所有数据
+ * @return 是否有数据更新
  */
-void data_manager_update(void);
+bool data_manager_update(void);
+
+/**
+ * 设置数据更新优先级
+ * @param priority 优先级(0=低，1=中，2=高)
+ */
+void data_manager_set_update_priority(uint8_t priority);
+
+/**
+ * 通知用户活动，触发更高频率的数据更新
+ */
+void data_manager_notify_user_activity(void);
 
 /**
  * 检查数据是否有变化
@@ -61,5 +84,8 @@ uint8_t data_manager_get_cpu_core_count(void);
  * @param is_animating 是否正在动画
  */
 void data_manager_set_anim_state(bool is_animating);
+
+bool data_manager_is_initialized(void);
+
 
 #endif // DATA_MANAGER_H

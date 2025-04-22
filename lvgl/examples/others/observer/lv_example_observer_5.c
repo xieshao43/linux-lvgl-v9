@@ -1,6 +1,9 @@
 #include "../../lv_examples.h"
 #if LV_USE_OBSERVER && LV_USE_ARC && LV_USE_LABEL && LV_USE_BUTTON && LV_USE_SPINNER && LV_BUILD_EXAMPLES
 
+// 添加WiFi通知模块头文件
+#include "../../../../lvgl_ui/modules/wifi_notification.h"
+
 typedef enum {
     FW_UPDATE_STATE_IDLE,
     FW_UPDATE_STATE_CONNECTING,
@@ -27,6 +30,12 @@ static lv_subject_t fw_update_status_subject;
  */
 void lv_example_observer_5(void)
 {
+    // 初始化WiFi通知系统
+    wifi_notification_init();
+    
+    // 显示WiFi已连接，包含IP地址
+    wifi_notification_show_ex(WIFI_STATE_CONNECTED, "TestNetwork", "192.168.1.100");
+    
     lv_subject_init_int(&fw_download_percent_subject, 0);
     lv_subject_init_int(&fw_update_status_subject, FW_UPDATE_STATE_IDLE);
 
@@ -34,6 +43,7 @@ void lv_example_observer_5(void)
 
     /*Create start FW update button*/
     lv_obj_t * btn = lv_btn_create(lv_screen_active());
+    lv_obj_add_style(btn, &style_btn, 0);  // 添加苹果风格按钮样式
     lv_obj_add_event_cb(btn, fw_update_btn_clicked_event_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_center(btn);
     lv_obj_t * label = lv_label_create(btn);
@@ -64,6 +74,9 @@ static void fw_update_close_event_cb(lv_event_t * e)
 {
     LV_UNUSED(e);
     lv_subject_set_int(&fw_update_status_subject, FW_UPDATE_STATE_CANCEL);
+    
+    // 停止下载通知
+    wifi_notification_stop_download();
 }
 
 static void restart_btn_click_event_cb(lv_event_t * e)
@@ -71,6 +84,9 @@ static void restart_btn_click_event_cb(lv_event_t * e)
     lv_obj_t * win = lv_event_get_user_data(e);
     lv_obj_delete(win);
     lv_subject_set_int(&fw_update_status_subject, FW_UPDATE_STATE_IDLE);
+    
+    // 停止下载通知
+    wifi_notification_stop_download();
 }
 
 static void fw_update_win_observer_cb(lv_observer_t * observer, lv_subject_t * subject)
@@ -132,15 +148,20 @@ static void download_timer_cb(lv_timer_t * t)
 {
     if(lv_subject_get_int(&fw_update_status_subject) == FW_UPDATE_STATE_CANCEL) {
         lv_timer_delete(t);
+        wifi_notification_stop_download();
         return;
     }
 
     int32_t v = lv_subject_get_int(&fw_download_percent_subject);
     if(v < 100) {
         lv_subject_set_int(&fw_download_percent_subject, v + 1);
+        // 同步更新WiFi通知中的下载进度
+        wifi_notification_update_download(v + 1, DOWNLOAD_STATE_ACTIVE);
     }
     else {
         lv_subject_set_int(&fw_update_status_subject, FW_UPDATE_STATE_READY);
+        // 更新完成，停止下载通知
+        wifi_notification_update_download(100, DOWNLOAD_STATE_COMPLETED);
         lv_timer_delete(t);
     }
 }
@@ -156,10 +177,20 @@ static void fw_upload_manager_observer_cb(lv_observer_t * observer, lv_subject_t
     fw_update_state_t state = lv_subject_get_int(&fw_update_status_subject);
     if(state == FW_UPDATE_STATE_CONNECTING) {
         lv_timer_create(connect_timer_cb, 2000, NULL);
+        
+        // 显示WiFi正在连接
+        wifi_notification_show_ex(WIFI_STATE_CONNECTING, NULL, NULL);
     }
     else if(state == FW_UPDATE_STATE_CONNECTED) {
         lv_subject_set_int(&fw_download_percent_subject, 0);
         lv_subject_set_int(&fw_update_status_subject, FW_UPDATE_STATE_DOWNLOADING);
+        
+        // 显示WiFi已连接，包含IP地址
+        wifi_notification_show_ex(WIFI_STATE_CONNECTED, "TestNetwork", "192.168.1.100");
+        
+        // 开始显示下载进度
+        wifi_notification_show_download("firmware-v1.2.bin", 0, DOWNLOAD_STATE_ACTIVE);
+        
         lv_timer_create(download_timer_cb, 50, NULL);
     }
 }

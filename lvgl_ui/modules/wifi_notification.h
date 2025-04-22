@@ -2,6 +2,7 @@
 #define WIFI_NOTIFICATION_H
 
 #include "../lvgl.h"
+#include "../core/ui_manager.h"
 
 /**
  * WiFi connection states
@@ -34,5 +35,19 @@ void wifi_notification_hide(void);
  * @return true if visible, false otherwise
  */
 bool wifi_notification_is_visible(void);
+
+/**
+ * Update WiFi status for a specific interface
+ * @param state The WiFi connection state
+ * @param ssid The SSID (can be NULL)
+ * @param interface The interface name (e.g. "wlan0", "wlan1")
+ */
+void wifi_notification_update_interface(wifi_state_t state, const char *ssid, const char *interface);
+
+/**
+ * Release WiFi notification resources
+ * Hides the notification if visible and frees all allocated resources
+ */
+void wifi_notification_deinit(void);
 
 #endif // WIFI_NOTIFICATION_H
