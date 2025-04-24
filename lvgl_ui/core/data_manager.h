@@ -87,5 +87,9 @@ void data_manager_set_anim_state(bool is_animating);
 
 bool data_manager_is_initialized(void);
 
+/**
+ * 释放数据管理器资源
+ */
+void data_manager_deinit(void);
 
 #endif // DATA_MANAGER_H

@@ -63,4 +63,11 @@ void ui_utils_page_enter_anim(lv_obj_t *page, ui_anim_type_t anim_type, uint32_t
  */
 void ui_utils_page_exit_anim(lv_obj_t *page, ui_anim_type_t anim_type, uint32_t duration_ms, bool destroy, lv_anim_ready_cb_t user_cb);
 
+/**
+ * 创建iOS风格的缩放过渡动画，从菜单项扩展到全屏
+ * @param selected_item 选中的菜单项对象
+ * @param create_screen_func 创建新屏幕的函数指针
+ */
+void ui_utils_zoom_transition(lv_obj_t *selected_item, void (*create_screen_func)(void));
+
 #endif // UI_UTILS_H

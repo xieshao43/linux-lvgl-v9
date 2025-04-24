@@ -5,10 +5,10 @@
 
 /* 页面管理定义 */
 #define PAGE_COUNT 2
-#define PAGE_SWITCH_INTERVAL 15000  // 9秒，更符合人的注意力周期
+#define PAGE_SWITCH_INTERVAL 15000  // 15秒，更符合人的注意力周期
 #define UPDATE_INTERVAL 500        // 更新间隔，毫秒
 
-/* 动画过渡类型定义 */
+/* 动画过渡类型定义 - LVGL 9.2屏幕切换适用 */
 typedef enum {
     ANIM_NONE = 0,        // 无动画
     ANIM_FADE,            // 淡入淡出
@@ -69,7 +69,7 @@ typedef enum {
 #define FONT_NORMAL &lv_font_montserrat_16
 #define FONT_LARGE  &lv_font_montserrat_22
 
-/* 每个UI模块应实现的接口 */
+/* 模块化UI接口 (保留用于兼容旧代码) */
 typedef struct {
     void (*create)(lv_obj_t *parent);  // 创建UI
     void (*delete)(void);              // 删除UI

@@ -4,12 +4,11 @@
 #include "../common.h"
 #include "../core/data_manager.h"
 #include "../utils/ui_utils.h"
-#include "../utils/ui_rounded.h"
 
 /**
- * 获取存储监控模块接口
- * @return 存储监控模块接口
+ * 创建存储屏幕
+ * 使用LVGL原生屏幕管理替代模块化架构
  */
-ui_module_t* storage_ui_get_module(void);
+void storage_ui_create_screen(void);
 
 #endif // STORAGE_UI_H

@@ -1,9 +1,10 @@
 #include "menu_ui.h"
-
+#include "storage_ui.h"
+#include "cpu_ui.h" // 添加这个头文件引用
 
 // 私有数据结构
 typedef struct {
-    lv_obj_t *panel;           // 主面板
+    lv_obj_t *screen;          // 主屏幕（替代之前的panel）
     lv_obj_t *menu_list;       // 菜单列表
     lv_obj_t **menu_items;     // 菜单项数组
     uint8_t item_count;        // 菜单项数量
@@ -13,7 +14,6 @@ typedef struct {
 } menu_ui_data_t;
 
 static menu_ui_data_t ui_data;
-static ui_module_t menu_module;
 
 // 菜单项定义
 #define MENU_ITEM_COUNT 4  // 从3改为4，增加Intelligence选项
@@ -24,148 +24,300 @@ static const char* menu_items[MENU_ITEM_COUNT] = {
     "Music"  
 };
 
-// 相应菜单项的模块索引
-static const uint8_t menu_item_modules[MENU_ITEM_COUNT] = {1, 2, 0, 3};  // 假设Intelligence模块索引为3
-
-// 使用LVGL内置符号
-// 避免使用Unicode F017, F11B等无法显示的字符
+// 使用LVGL内置符号 - 优化版本
 static const char* menu_icons[MENU_ITEM_COUNT] = {
-    LV_SYMBOL_SAVE,      // 存储图标
-    LV_SYMBOL_SETTINGS,  // CPU图标
-    LV_SYMBOL_HOME,      // 音乐图标
-    LV_SYMBOL_AUDIO      // Intelligence图标（使用音频符号表示语音/AI助手）
+    LV_SYMBOL_DRIVE,      // 存储图标 - 使用驱动器图标更准确表示存储
+    LV_SYMBOL_CHARGE,     // CPU图标 - 使用充能图标表示性能和处理能力
+    LV_SYMBOL_PLAY,       // Intelligence图标 - 使用网络连接图标表示智能互联功能
+    LV_SYMBOL_AUDIO        // 音乐图标 - 使用播放图标更直观表示音乐功能
 };
 
-// 突出显示当前选中的菜单项并确保其可见（添加自动滚动功能）
-static void _highlight_selected_item(void) {
-    for (int i = 0; i < ui_data.item_count; i++) {
-        // 获取菜单项对象
-        lv_obj_t *item = ui_data.menu_items[i];
-        if (!item) continue; // 安全检查
+// 菜单项屏幕创建函数，替换之前的模块索引
+static void (*create_screen_functions[MENU_ITEM_COUNT])(void) = {
+    storage_ui_create_screen,   // 存储屏幕创建函数
+    cpu_ui_create_screen,       // CPU屏幕创建函数
+    NULL,                       // Intelligence屏幕创建函数（待实现）
+    NULL                        // 音乐屏幕创建函数（待实现）
+};
+
+// 增加非线性动画辅助函数，实现贝塞尔曲线过渡效果
+static int32_t _bezier_ease_out(int32_t t, int32_t max) {
+    // 转换为0-1024范围进行计算
+    int32_t normalized = (t * 1024) / max;
+    // 缓动公式：贝塞尔曲线实现的缓出效果
+    int32_t result = normalized - ((1024 * normalized * (1024 - normalized)) / (1024 * 1024));
+    // 转换回原始范围
+    return (result * max) / 1024;
+}
+
+// 优化：菜单滚动事件处理函数 - 实现更平滑的圆形滚动效果
+static void _menu_scroll_event_cb(lv_event_t *e)
+{
+    lv_obj_t *cont = lv_event_get_target(e);
+    
+    // 获取容器中心点坐标
+    lv_area_t cont_a;
+    lv_obj_get_coords(cont, &cont_a);
+    int32_t cont_y_center = cont_a.y1 + lv_area_get_height(&cont_a) / 2;
+    
+    // 计算半径 - 适应小屏幕尺寸调整
+    int32_t r = lv_obj_get_height(cont) * 6 / 10;  // 减小半径比例以适应小屏幕
+    
+    // 遍历所有子项
+    uint32_t child_cnt = lv_obj_get_child_count(cont);
+    for(uint32_t i = 0; i < child_cnt; i++) {
+        lv_obj_t *item = lv_obj_get_child(cont, i);
+        lv_area_t child_a;
+        lv_obj_get_coords(item, &child_a);
         
-        // 获取内容容器（第一个子对象）
-        lv_obj_t *content = lv_obj_get_child(item, 0);
-        if (!content) continue; // 安全检查
+        // 计算子项与容器中心的垂直距离
+        int32_t child_y_center = child_a.y1 + lv_area_get_height(&child_a) / 2;
+        int32_t diff_y = child_y_center - cont_y_center;
+        int32_t abs_diff_y = LV_ABS(diff_y);
         
-        // 获取图标和标签对象
-        lv_obj_t *icon = lv_obj_get_child(content, 0);
-        lv_obj_t *label = lv_obj_get_child(content, 1);
-        
-        if (i == ui_data.current_index) {
-            // 选中项样式 - 苹果风格的柔和高亮效果
-            
-            // 1. iOS 13+风格的点亮效果
-            lv_obj_set_style_bg_color(item, lv_color_hex(0x6366F1), 0); // iOS紫色
-            lv_obj_set_style_bg_grad_color(item, lv_color_hex(0x4F46E5), 0);
-            lv_obj_set_style_bg_opa(item, LV_OPA_90, 0);
-            
-            // 2. 精致的内发光效果
-            lv_obj_set_style_shadow_width(item, 15, 0);
-            lv_obj_set_style_shadow_ofs_x(item, 0, 0);
-            lv_obj_set_style_shadow_ofs_y(item, 0, 0);
-            lv_obj_set_style_shadow_spread(item, 0, 0);
-            lv_obj_set_style_shadow_color(item, lv_color_hex(0x6366F1), 0);
-            lv_obj_set_style_shadow_opa(item, LV_OPA_30, 0);
-            
-            // 3. 明确设置文本颜色（纯白色）- 高对比度
-            if (icon) {
-                lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
-                lv_obj_set_style_opa(icon, LV_OPA_COVER, 0); // 完全不透明
-            }
-            
-            if (label) {
-                lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
-                // 微小字间距增强，增强选中感
-                lv_obj_set_style_text_letter_space(label, 1, 0);
-            }
-            
-            // 4. 确保当前选中项可见 - 加入平滑滚动效果
-            lv_obj_scroll_to_view(item, LV_ANIM_ON);
-            
+        // 使用非线性函数计算X位置 - 贝塞尔曲线实现平滑过渡
+        int32_t x;
+        if(abs_diff_y >= r) {
+            x = r;
         } else {
-            // 非选中项样式 - 低调暗色调
+            // 应用贝塞尔缓动函数，使动画更自然
+            int32_t bezier_diff = _bezier_ease_out(abs_diff_y, r);
             
-            // 1. 暗色透明玻璃效果
-            lv_obj_set_style_bg_color(item, lv_color_hex(0x1a1a2e), 0);
-            lv_obj_set_style_bg_grad_color(item, lv_color_hex(0x16213e), 0);
-            lv_obj_set_style_bg_grad_dir(item, LV_GRAD_DIR_HOR, 0);
-            lv_obj_set_style_bg_opa(item, LV_OPA_60, 0);
+            // 使用改进的平方根计算，确保平滑过渡
+            uint32_t x_sqr = r * r - bezier_diff * bezier_diff;
+            lv_sqrt_res_t res;
+            lv_sqrt(x_sqr, &res, 0x8000);
+            x = r - res.i;
             
-            // 2. 轻微的阴影
-            lv_obj_set_style_shadow_width(item, 8, 0);
-            lv_obj_set_style_shadow_ofs_y(item, 2, 0);
-            lv_obj_set_style_shadow_color(item, lv_color_hex(0x000000), 0);
-            lv_obj_set_style_shadow_opa(item, LV_OPA_10, 0);
-            
-            // 3. 稍暗的文本颜色
-            if (icon) {
-                lv_obj_set_style_text_color(icon, lv_color_hex(0xE2E8F0), 0);
-                lv_obj_set_style_opa(icon, LV_OPA_80, 0); // 轻微半透明
-            }
-            
-            if (label) {
-                lv_obj_set_style_text_color(label, lv_color_hex(0xE2E8F0), 0);
-                lv_obj_set_style_text_letter_space(label, 0, 0); // 正常字间距
-            }
+            // 限制最小X值，确保项目不会完全重叠
+            x = LV_MAX(x, 5);
+        }
+        
+        // 应用X轴平移效果 - 使用缓动函数使过渡更加平滑
+        lv_obj_set_style_translate_x(item, x, 0);
+        
+        // 应用透明度缩放效果 - 使用非线性透明度变化曲线
+        lv_opa_t base_opa = LV_OPA_COVER - (LV_OPA_COVER * x / r) / 3;  // 减小透明度变化范围
+        lv_obj_set_style_opa(item, base_opa, 0); 
+        
+        // 应用缩放效果 - 非活跃项变小，使用非线性缩放曲线
+        int32_t scale_factor = 256 - ((x * 40) / r); // 从100%到大约85%的缩放
+        lv_obj_set_style_transform_zoom(item, scale_factor, 0);
+        
+        // 添加旋转效果 - 根据距离中心远近添加微小角度旋转
+        int8_t rotation = diff_y > 0 ? 2 : -2;  // 根据位置决定旋转方向
+        int8_t actual_rotation = (rotation * x) / r; // 旋转角度随距离增加而增加
+        lv_obj_set_style_transform_angle(item, actual_rotation * 10, 0); // *10 因为LVGL中角度单位是0.1度
+    }
+}
+
+// 高亮项切换动画回调函数
+static void _highlight_anim_cb(void *var, int32_t value) {
+    lv_obj_t *item = (lv_obj_t *)var;
+    if(!item) return;
+    
+    // 获取内容容器
+    lv_obj_t *content = lv_obj_get_child(item, 0);
+    if(!content) return;
+    
+    // 获取图标和标签对象
+    lv_obj_t *icon = lv_obj_get_child(content, 0);
+    lv_obj_t *label = lv_obj_get_child(content, 1);
+    
+    // 计算过渡值 (0-255)
+    uint32_t trans = value;
+    
+    // 1. 左不透明右透明的渐变背景 - 动态过渡
+    // 明亮的左侧起点颜色
+    lv_obj_set_style_bg_color(item, lv_color_hex(0x29B6F6), 0);
+    
+    // 右侧终点颜色
+    lv_obj_set_style_bg_grad_color(item, lv_color_hex(0x29B6F6), 0);
+    
+    // 使用动画值调整不透明度
+    lv_obj_set_style_bg_opa(item, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_main_opa(item, (trans * LV_OPA_80) / 255, 0);
+    lv_obj_set_style_bg_grad_opa(item, (trans * LV_OPA_0) / 255, 0);
+    
+    // 调整渐变分布
+    lv_obj_set_style_bg_grad_dir(item, LV_GRAD_DIR_HOR, 0);
+    lv_obj_set_style_bg_main_stop(item, 0, 0);
+    lv_obj_set_style_bg_grad_stop(item, 200, 0);
+    
+    // 3. 精致的边框效果
+    lv_obj_set_style_border_color(item, lv_color_hex(0xADD8E6), 0);
+    lv_obj_set_style_border_width(item, 1, 0);
+    lv_obj_set_style_border_opa(item, (trans * LV_OPA_70) / 255, 0);
+    lv_obj_set_style_border_side(item, LV_BORDER_SIDE_LEFT | LV_BORDER_SIDE_TOP, 0);
+    
+    // 4. 微妙的阴影和光晕效果
+    lv_obj_set_style_shadow_width(item, 10, 0);
+    lv_obj_set_style_shadow_ofs_x(item, 0, 0);
+    lv_obj_set_style_shadow_ofs_y(item, 0, 0);
+    lv_obj_set_style_shadow_spread(item, 0, 0);
+    lv_obj_set_style_shadow_color(item, lv_color_hex(0x29B6F6), 0);
+    lv_obj_set_style_shadow_opa(item, (trans * LV_OPA_40) / 255, 0);
+    
+    // 5. 高对比度文本 - 平滑过渡
+    if (icon) {
+        lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_text_opa(icon, (trans * LV_OPA_COVER) / 255, 0);
+    }
+    
+    if (label) {
+        lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_text_opa(label, (trans * LV_OPA_COVER) / 255, 0);
+        
+        // 动态调整文字大小
+        uint8_t font_size = 14 + ((trans * 2) / 255); // 从14到16
+        if (trans > 200) {
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
+        } else {
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+        }
+        
+        lv_obj_set_style_text_letter_space(label, (trans * 1) / 255, 0);
+    }
+}
+
+// 非高亮项过渡动画回调函数
+static void _unhighlight_anim_cb(void *var, int32_t value) {
+    lv_obj_t *item = (lv_obj_t *)var;
+    if(!item) return;
+    
+    // 获取内容容器
+    lv_obj_t *content = lv_obj_get_child(item, 0);
+    if(!content) return;
+    
+    // 获取图标和标签对象
+    lv_obj_t *icon = lv_obj_get_child(content, 0);
+    lv_obj_t *label = lv_obj_get_child(content, 1);
+    
+    // 计算过渡值，从255递减到0
+    uint32_t trans = value;
+    
+    // 还原非高亮状态 - 渐变透明效果
+    if (trans < 10) {
+        // 当值接近0时，重置所有高亮效果
+        lv_obj_set_style_bg_opa(item, LV_OPA_40, 0);
+        lv_obj_set_style_bg_main_opa(item, LV_OPA_40, 0);
+        lv_obj_set_style_bg_grad_opa(item, LV_OPA_40, 0);
+        lv_obj_set_style_border_width(item, 0, 0);
+        lv_obj_set_style_shadow_opa(item, LV_OPA_0, 0);
+        
+        // 恢复普通文本样式
+        if (label) {
+            lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+            lv_obj_set_style_text_letter_space(label, 0, 0);
+        }
+    } else {
+        // 渐变过渡
+        lv_obj_set_style_bg_main_opa(item, (trans * LV_OPA_80) / 255, 0);
+        lv_obj_set_style_bg_grad_opa(item, (trans * LV_OPA_0) / 255, 0);
+        lv_obj_set_style_border_opa(item, (trans * LV_OPA_70) / 255, 0);
+        lv_obj_set_style_shadow_opa(item, (trans * LV_OPA_40) / 255, 0);
+    }
+    
+    // 调整文本不透明度
+    if (icon) lv_obj_set_style_text_opa(icon, (trans * LV_OPA_COVER) / 255, 0);
+    if (label) lv_obj_set_style_text_opa(label, (trans * LV_OPA_COVER) / 255, 0);
+}
+
+// 使用动画平滑切换选中的菜单项
+static void _highlight_selected_item(void) {
+    if (!ui_data.is_active || !ui_data.menu_items) return;
+    
+    // 滚动到视图
+    if (ui_data.current_index < ui_data.item_count) {
+        lv_obj_t *item = ui_data.menu_items[ui_data.current_index];
+        if (item) {
+            // 使用动画将选中项滚动到视图中央
+            lv_obj_scroll_to_view(item, LV_ANIM_ON);
         }
     }
     
-    // 强制更新显示
-    lv_display_t *disp = lv_display_get_default();
-    if (disp) lv_refr_now(disp);
+    static uint8_t previous_index = 0;
+    
+    // 如果索引没有变化，不需要动画过渡
+    if (previous_index == ui_data.current_index) {
+        return;
+    }
+    
+    // 从前一个高亮项过渡移除高亮效果
+    if (previous_index < ui_data.item_count) {
+        lv_obj_t *prev_item = ui_data.menu_items[previous_index];
+        if (prev_item) {
+            // 创建平滑过渡动画，移除高亮效果
+            lv_anim_t a;
+            lv_anim_init(&a);
+            lv_anim_set_var(&a, prev_item);
+            lv_anim_set_values(&a, 255, 0);
+            lv_anim_set_time(&a, 200);
+            lv_anim_set_exec_cb(&a, _unhighlight_anim_cb);
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+            lv_anim_start(&a);
+        }
+    }
+    
+    // 为新的高亮项添加高亮效果动画
+    if (ui_data.current_index < ui_data.item_count) {
+        lv_obj_t *current_item = ui_data.menu_items[ui_data.current_index];
+        if (current_item) {
+            // 创建平滑过渡动画，添加高亮效果
+            lv_anim_t a;
+            lv_anim_init(&a);
+            lv_anim_set_var(&a, current_item);
+            lv_anim_set_values(&a, 0, 255);
+            lv_anim_set_time(&a, 300);
+            lv_anim_set_exec_cb(&a, _highlight_anim_cb);
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+            lv_anim_start(&a);
+        }
+    }
+    
+    // 更新前一个索引
+    previous_index = ui_data.current_index;
+    
+    // 触发滚动事件更新圆形布局
+    lv_obj_send_event(ui_data.menu_list, LV_EVENT_SCROLL, NULL);
 }
 
-// 声明外部类型以解决编译错误
-typedef struct {
-    lv_obj_t *page;       // 页面对象
-    bool destroy;         // 是否销毁
-    lv_anim_ready_cb_t user_cb; // 用户回调函数
-    void *user_data;      // 用户数据
-} ui_page_anim_data_t;
-
-// 添加模块切换包装函数，接收定时器作为参数
-static void _module_switch_wrapper(lv_timer_t *timer) {
-    if(timer == NULL) return;
-    
-    // 从定时器的用户数据中获取模块索引
-    uint8_t module_idx = (uint8_t)((uintptr_t)lv_timer_get_user_data(timer));
-    
-    #if UI_DEBUG_ENABLED
-    printf("[MENU] Switch wrapper: switching to module %d\n", module_idx);
-    #endif
-    
-    // 调用UI管理器的模块切换函数
-    ui_manager_show_module(module_idx);
+// 滑动动画回调函数
+static void _slide_anim_cb(void *var, int32_t v) {
+    lv_obj_set_x((lv_obj_t*)var, v);
 }
 
-// 保存当前要跳转的模块索引
-static uint8_t pending_module_index = 0;
-
-// 修改函数，简化模块索引获取方式
-static void _module_switch_from_anim(lv_anim_t *a) {
-    // 直接使用之前保存的待切换模块索引
-    uint8_t module_idx = pending_module_index;
+// 处理长按菜单项事件，使用缩放动画过渡到对应屏幕
+static void _screen_load_with_zoom_animation(uint8_t screen_index) {
+    if (screen_index >= MENU_ITEM_COUNT || create_screen_functions[screen_index] == NULL) {
+        #if UI_DEBUG_ENABLED
+        printf("[MENU] Error: Invalid screen index or function: %d\n", screen_index);
+        #endif
+        return;
+    }
     
-    #if UI_DEBUG_ENABLED
-    printf("[MENU] Switch from anim: switching to module %d\n", module_idx);
-    #endif
+    // 标记为非活动，避免继续处理按钮事件
+    ui_data.is_active = false;
     
-    // 安全检查，确保模块索引有效
-    if (module_idx < ui_manager_get_module_count()) {
-        // 调用UI管理器切换到目标模块
-        ui_manager_show_module(module_idx);
-    } else {
-        printf("[MENU] Error: Invalid module index: %d\n", module_idx);
+    // 停止按钮定时器，防止切换过程中干扰
+    if (ui_data.button_timer) {
+        lv_timer_pause(ui_data.button_timer);
+    }
+    
+    // 获取当前选中的菜单项对象
+    if (ui_data.current_index < ui_data.item_count && ui_data.menu_items) {
+        lv_obj_t *selected_item = ui_data.menu_items[ui_data.current_index];
+        if (selected_item) {
+            // 使用通用工具函数实现缩放过渡动画
+            ui_utils_zoom_transition(selected_item, create_screen_functions[screen_index]);
+        }
     }
 }
 
-// 按钮事件处理定时器回调 - 修改按键逻辑
+// 按钮事件处理定时器回调
 static void _button_handler_cb(lv_timer_t *timer) {
-    // 更严格的安全检查
-    if (!ui_data.is_active || !ui_data.menu_items || !ui_data.panel || ui_data.item_count == 0) {
-        #if UI_DEBUG_ENABLED
-        printf("[MENU] Button handler: safety check failed\n");
-        #endif
+    // 安全检查
+    if (!ui_data.is_active || !ui_data.menu_items || !ui_data.screen || ui_data.item_count == 0) {
         return;
     }
     
@@ -175,18 +327,17 @@ static void _button_handler_cb(lv_timer_t *timer) {
     // 清除事件标志
     key355_clear_event();
     
-    // 调试输出
-    #if UI_DEBUG_ENABLED
-    printf("[MENU] Button event: %d\n", event);
-    #endif
-    
     // 根据按钮事件执行操作
     switch (event) {
         case BUTTON_EVENT_CLICK:
-            // 单击：切换选项 - 增加索引安全检查
+            // 单击：切换选项
             if (ui_data.item_count > 0 && ui_data.is_active) {
+                // 更新索引
                 ui_data.current_index = (ui_data.current_index + 1) % ui_data.item_count;
+                
+                // 触发平滑过渡动画
                 _highlight_selected_item();
+                
                 #if UI_DEBUG_ENABLED
                 printf("[MENU] Selected item: %d\n", ui_data.current_index);
                 #endif
@@ -194,18 +345,15 @@ static void _button_handler_cb(lv_timer_t *timer) {
             break;
             
         case BUTTON_EVENT_LONG_PRESS:
-            // 长按：选择当前项并进入相应模块 - 增加更严格的检查
+            // 长按：选择当前项并进入相应屏幕
             if (ui_data.current_index < ui_data.item_count && ui_data.is_active) {
-                uint8_t module_idx = menu_item_modules[ui_data.current_index];
+                uint8_t screen_idx = ui_data.current_index;
                 #if UI_DEBUG_ENABLED
-                printf("[MENU] Long press detected, switching to module: %d\n", module_idx);
+                printf("[MENU] Long press detected, switching to screen: %d\n", screen_idx);
                 #endif
                 
-                if (module_idx < ui_manager_get_module_count()) {
-                    // 在切换前先暂停动画和定时器，防止引起内存问题
-                    lv_anim_del_all();
-                    
-                    // 停止自身的按钮处理定时器
+                if (create_screen_functions[screen_idx] != NULL) {
+                    // 暂停按钮处理定时器
                     if (ui_data.button_timer) {
                         lv_timer_pause(ui_data.button_timer);
                         #if UI_DEBUG_ENABLED
@@ -213,20 +361,8 @@ static void _button_handler_cb(lv_timer_t *timer) {
                         #endif
                     }
                     
-                    // 标记为非活动
-                    ui_data.is_active = false;
-                    
-                    // 保存要切换的模块索引到全局变量
-                    pending_module_index = module_idx;
-                    
-                    // 创建退出动画，完成后切换到目标模块
-                    ui_utils_page_exit_anim(
-                        ui_data.panel,
-                        ANIM_FADE_SCALE,  // 使用苹果风格的淡出+缩放效果
-                        ANIM_DURATION,    // 使用预定义的动画时长
-                        false,            // 不销毁面板，由ui_manager负责
-                        (lv_anim_ready_cb_t)_module_switch_from_anim  // 动画完成后执行模块切换
-                    );
+                    // 切换到目标屏幕
+                    _screen_load_with_zoom_animation(screen_idx);
                 }
             }
             break;
@@ -236,250 +372,213 @@ static void _button_handler_cb(lv_timer_t *timer) {
     }
 }
 
-// 创建UI
-static void _create_ui(lv_obj_t *parent) {
-    // 创建主面板 - 撑满整个屏幕空间
-    ui_data.panel = lv_obj_create(parent);
-    lv_obj_set_size(ui_data.panel, 240, 135);
+// 创建菜单屏幕 - 苹果风格优化版
+void menu_ui_create_screen(void) {
+    // 创建新的屏幕对象
+    ui_data.screen = lv_obj_create(NULL);
     
-    // 更新背景为更深邃的黑色，增强高级感
-    lv_obj_set_style_bg_color(ui_data.panel, lv_color_hex(0x121824), 0);
-    lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x1E293B), 0);
-    lv_obj_set_style_bg_grad_dir(ui_data.panel, LV_GRAD_DIR_VER, 0);
+#if LV_USE_DRAW_SW_COMPLEX_GRADIENTS
+    // 定义渐变色 - 保留原有的紫色到黑色渐变
+    static const lv_color_t grad_colors[2] = {
+        LV_COLOR_MAKE(0x9B, 0x18, 0x42), // 紫红色
+        LV_COLOR_MAKE(0x00, 0x00, 0x00), // 纯黑色
+    };
     
-    // 增加模糊效果的视觉暗示 - 微妙的阴影边缘
-    lv_obj_set_style_bg_opa(ui_data.panel, LV_OPA_90, 0); // 微妙的半透明效果
-    lv_obj_set_style_radius(ui_data.panel, 16, 0);
-    lv_obj_set_style_pad_all(ui_data.panel, 10, 0);
-    lv_obj_set_style_border_width(ui_data.panel, 0, 0);
+    // 初始化渐变描述符
+    static lv_grad_dsc_t grad;
+    lv_grad_init_stops(&grad, grad_colors, NULL, NULL, sizeof(grad_colors) / sizeof(lv_color_t));
     
-    // 添加苹果风格的玻璃模糊效果暗示
-    lv_obj_set_style_shadow_width(ui_data.panel, 30, 0);
-    lv_obj_set_style_shadow_ofs_x(ui_data.panel, 0, 0);
-    lv_obj_set_style_shadow_ofs_y(ui_data.panel, 0, 0);
-    lv_obj_set_style_shadow_spread(ui_data.panel, 0, 0);
-    lv_obj_set_style_shadow_color(ui_data.panel, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_shadow_opa(ui_data.panel, LV_OPA_20, 0);
+    // 设置径向渐变 - 从中心向四周扩散
+    lv_grad_radial_init(&grad, LV_GRAD_CENTER, LV_GRAD_CENTER, LV_GRAD_RIGHT, LV_GRAD_BOTTOM, LV_GRAD_EXTEND_PAD);
     
-    lv_obj_center(ui_data.panel);
-    lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_SCROLLABLE);
+    // 应用渐变背景
+    lv_obj_set_style_bg_grad(ui_data.screen, &grad, 0);
+    lv_obj_set_style_bg_opa(ui_data.screen, LV_OPA_COVER, 0);
+#endif
     
-    // 创建背景大字体"Menu"标签 - 苹果设计语言核心：精致的细节
-    lv_obj_t *bg_label = lv_label_create(ui_data.panel);
+    lv_obj_clear_flag(ui_data.screen, LV_OBJ_FLAG_SCROLLABLE);
     
-    // 使用更大的字体，但由于系统限制，我们使用可用的最大字体
-    lv_obj_set_style_text_font(bg_label, &lv_font_montserrat_16, 0);
+    // 创建圆形滚动菜单容器 - 改进的iOS风格
+    ui_data.menu_list = lv_obj_create(ui_data.screen);
+    lv_obj_set_size(ui_data.menu_list, 220, 120); // 增加高度以占据更多空间
+    lv_obj_align(ui_data.menu_list, LV_ALIGN_CENTER, 0, 0); // 完全居中
     
-    // 使用较大的字间距和字体放大来模拟更大的字体效果
-    lv_obj_set_style_text_letter_space(bg_label, 5, 0);
-    lv_obj_set_style_transform_zoom(bg_label, 300, 0); // 放大到300%
-    
-    // 设置优雅的半透明灰色 - 典型的苹果设计风格
-    lv_obj_set_style_text_color(bg_label, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_text_opa(bg_label, LV_OPA_10, 0); // 非常低的透明度，营造水印效果
-    
-    lv_label_set_text(bg_label, "MENU");
-    
-    // 居中放置，但稍稍偏向面板顶部
-    lv_obj_center(bg_label);
-    lv_obj_set_style_transform_pivot_x(bg_label, lv_pct(50), 0);
-    lv_obj_set_style_transform_pivot_y(bg_label, lv_pct(50), 0);
-    
-    // 创建菜单列表容器 - 垂直布局，占满面板
-    ui_data.menu_list = lv_obj_create(ui_data.panel);
-    lv_obj_set_size(ui_data.menu_list, 220, 115);
-    
-    // 完全透明背景，让背景的MENU字样显示
-    lv_obj_set_style_bg_opa(ui_data.menu_list, LV_OPA_TRANSP, 0);
+    // 设置菜单容器样式 - 透明背景
+    lv_obj_set_style_bg_opa(ui_data.menu_list, LV_OPA_0, 0);
     lv_obj_set_style_border_width(ui_data.menu_list, 0, 0);
-    lv_obj_set_style_pad_all(ui_data.menu_list, 5, 0);
-    lv_obj_set_flex_flow(ui_data.menu_list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(ui_data.menu_list, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_center(ui_data.menu_list);
+    lv_obj_set_style_pad_all(ui_data.menu_list, 10, 0); // 增加内边距
     
-    // 启用滚动功能，为自动滚动做准备
-    lv_obj_clear_flag(ui_data.menu_list, LV_OBJ_FLAG_SCROLL_ELASTIC);
-    lv_obj_clear_flag(ui_data.menu_list, LV_OBJ_FLAG_SCROLL_MOMENTUM);
-    lv_obj_set_scrollbar_mode(ui_data.menu_list, LV_SCROLLBAR_MODE_OFF);
+    // 设置垂直滚动布局
+    lv_obj_set_flex_flow(ui_data.menu_list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(ui_data.menu_list, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    
+    // 配置滚动行为 - 苹果风格的弹性滚动效果增强
     lv_obj_set_scroll_dir(ui_data.menu_list, LV_DIR_VER);
+    lv_obj_set_scroll_snap_y(ui_data.menu_list, LV_SCROLL_SNAP_CENTER); // 确保项目对齐到中心
+    lv_obj_set_scrollbar_mode(ui_data.menu_list, LV_SCROLLBAR_MODE_OFF); // 隐藏滚动条
+    
+    // 增强苹果风格的滚动体验
+    lv_obj_add_flag(ui_data.menu_list, LV_OBJ_FLAG_SCROLL_CHAIN); // 保持滚动链
+    lv_obj_add_flag(ui_data.menu_list, LV_OBJ_FLAG_SCROLL_ELASTIC); // 添加弹性滚动效果
+    lv_obj_add_flag(ui_data.menu_list, LV_OBJ_FLAG_SCROLL_MOMENTUM); // 添加动量滚动效果
+    
+    // 自定义滚动动画参数，使滚动更加平滑
+    lv_obj_set_scroll_snap_y(ui_data.menu_list, LV_SCROLL_SNAP_CENTER); // 强制吸附到中心
+    
+    // 设置自定义滚动动画参数
+    lv_obj_set_style_anim_time(ui_data.menu_list, 300, 0); // 延长动画时间
+    
+    // 添加圆形滚动效果事件
+    lv_obj_add_event_cb(ui_data.menu_list, _menu_scroll_event_cb, LV_EVENT_SCROLL, NULL);
+    lv_obj_add_event_cb(ui_data.menu_list, _menu_scroll_event_cb, LV_EVENT_SCROLL_END, NULL);
     
     // 创建菜单项
     ui_data.item_count = MENU_ITEM_COUNT;
     ui_data.menu_items = lv_malloc(sizeof(lv_obj_t*) * ui_data.item_count);
     
+    // 创建iOS风格的菜单项
     for (int i = 0; i < ui_data.item_count; i++) {
-        // 为每个菜单项创建卡片式容器 - 苹果风格的圆角扁平卡片
+        // 创建菜单项容器 - 更大的圆角
         lv_obj_t *item = lv_obj_create(ui_data.menu_list);
-        lv_obj_set_size(item, 210, 26);  // 稍微减小高度，更加紧凑优雅
-        lv_obj_set_style_radius(item, 10, 0);
+        lv_obj_set_size(item, 180, 40);
+        lv_obj_set_style_radius(item, 12, 0); // 大圆角更符合iOS风格
+        lv_obj_set_scrollbar_mode(item, LV_SCROLLBAR_MODE_OFF); 
         
-        // 使用玻璃态设计 - 典型的iOS暗黑模式效果
-        lv_obj_set_style_bg_color(item, lv_color_hex(0x1a1a2e), 0);
-        lv_obj_set_style_bg_grad_color(item, lv_color_hex(0x16213e), 0);
-        lv_obj_set_style_bg_grad_dir(item, LV_GRAD_DIR_HOR, 0);
-        lv_obj_set_style_bg_opa(item, LV_OPA_60, 0);  // 半透明背景
-        
+        // 毛玻璃效果 - 使用更自然的渐变色调
+        lv_obj_set_style_bg_color(item, lv_color_hex(0x314755), 0); // 保持深青色背景
+        lv_obj_set_style_bg_opa(item, LV_OPA_60, 0);
         lv_obj_set_style_border_width(item, 0, 0);
-        lv_obj_set_style_pad_all(item, 2, 0);
         
-        // 添加iOS式阴影 - 更加细腻
-        lv_obj_set_style_shadow_width(item, 8, 0);
-        lv_obj_set_style_shadow_ofs_y(item, 2, 0);
-        lv_obj_set_style_shadow_ofs_x(item, 0, 0);
+        // 添加微妙阴影效果
+        lv_obj_set_style_shadow_width(item, 10, 0);
+        lv_obj_set_style_shadow_ofs_y(item, 3, 0);
         lv_obj_set_style_shadow_color(item, lv_color_hex(0x000000), 0);
-        lv_obj_set_style_shadow_opa(item, LV_OPA_10, 0);
+        lv_obj_set_style_shadow_opa(item, LV_OPA_20, 0);
         
-        // 创建水平布局容器
+        // 改进玻璃质感效果 - 颜色过渡更加平滑
+        lv_obj_set_style_bg_grad_dir(item, LV_GRAD_DIR_HOR, 0);
+        
+        // 左侧起点颜色 - 使用明亮的紫红色，与背景形成呼应
+        lv_obj_set_style_bg_color(item, lv_color_hex(0xc94b4b), 0);
+        
+        // 右侧终点颜色 - 使用深蓝色作为过渡
+        lv_obj_set_style_bg_grad_color(item, lv_color_hex(0x4b134f), 0);   
+        
+        // 调整不透明度 - 左侧较高，整体偏低
+        lv_obj_set_style_bg_opa(item, LV_OPA_40, 0);                      
+        
+        // 调整渐变位置 - 使渐变更加自然
+        lv_obj_set_style_bg_main_stop(item, 0, 0);       // 渐变从左边缘开始
+        lv_obj_set_style_bg_grad_stop(item, 180, 0);     // 渐变提前结束，使右侧区域更透明
+        
+        // 添加精细的边框效果 - 顶部和左侧有微妙高光
+        lv_obj_set_style_border_color(item, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_border_width(item, 1, 0);
+        lv_obj_set_style_border_opa(item, LV_OPA_20, 0);  // 修改: 使用有效的LV_OPA_20替代LV_OPA_15
+        lv_obj_set_style_border_side(item, LV_BORDER_SIDE_LEFT | LV_BORDER_SIDE_TOP, 0); // 只在左侧和顶部显示边框
+        
+        // 增强玻璃光泽感 - 添加内部高光
+        lv_obj_set_style_shadow_width(item, 20, 0);
+        lv_obj_set_style_shadow_spread(item, 0, 0);
+        lv_obj_set_style_shadow_ofs_x(item, 5, 0);       // 右移阴影创造左侧明亮效果
+        lv_obj_set_style_shadow_ofs_y(item, 0, 0);
+        lv_obj_set_style_shadow_color(item, lv_color_hex(0xffffff), 0);
+        lv_obj_set_style_shadow_opa(item, LV_OPA_20, 0);  // 修改: 使用有效的LV_OPA_20替代LV_OPA_15
+        
+        // 添加微妙的外阴影增强立体感
+        lv_obj_set_style_shadow_width(item, 8, LV_STATE_DEFAULT | LV_PART_MAIN);
+        lv_obj_set_style_shadow_ofs_x(item, 0, LV_STATE_DEFAULT | LV_PART_MAIN);
+        lv_obj_set_style_shadow_ofs_y(item, 2, LV_STATE_DEFAULT | LV_PART_MAIN);
+        lv_obj_set_style_shadow_color(item, lv_color_hex(0x000000), LV_STATE_DEFAULT | LV_PART_MAIN);
+        lv_obj_set_style_shadow_opa(item, LV_OPA_20, LV_STATE_DEFAULT | LV_PART_MAIN);
+        
+        // 内容容器
         lv_obj_t *content = lv_obj_create(item);
-        lv_obj_set_size(content, 190, 22); // 略微调小以适应更紧凑的布局
-        lv_obj_set_style_bg_opa(content, LV_OPA_TRANSP, 0);
+        lv_obj_set_size(content, 160, 30);
+        lv_obj_set_style_bg_opa(content, LV_OPA_0, 0);
         lv_obj_set_style_border_width(content, 0, 0);
         lv_obj_set_style_pad_all(content, 0, 0);
         lv_obj_set_flex_flow(content, LV_FLEX_FLOW_ROW);
-        lv_obj_set_flex_align(content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_flex_align(content, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
         lv_obj_center(content);
         lv_obj_clear_flag(content, LV_OBJ_FLAG_SCROLLABLE);
         
-        // 创建图标 - 苹果风格的简约图标
+        // 创建图标 - 使用渐变透明效果的白色图标
         lv_obj_t *icon = lv_label_create(content);
         lv_obj_set_style_text_font(icon, &lv_font_montserrat_16, 0);
-        lv_obj_set_style_text_color(icon, lv_color_hex(0xE2E8F0), 0);
-        lv_obj_set_style_opa(icon, LV_OPA_80, 0);  // 轻微半透明，更优雅
+        lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_text_opa(icon, LV_OPA_90, 0);                    // 高不透明度确保清晰可见
         lv_label_set_text(icon, menu_icons[i]);
         
-        // 创建标签 - 使用苹果的San Francisco字体风格
+        // 创建标签 - 使用清晰但柔和的白色文字
         lv_obj_t *label = lv_label_create(content);
-        lv_obj_set_style_text_font(label, &lv_font_montserrat_16, 0);
-        // 根据苹果设计规范，文本略微加亮以增强可读性
-        lv_obj_set_style_text_color(label, lv_color_hex(0xF8FAFC), 0);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+        lv_obj_set_style_text_opa(label, LV_OPA_90, 0);  // 修改: 使用有效的LV_OPA_90替代LV_OPA_95
         lv_label_set_text(label, menu_items[i]);
-        lv_obj_set_style_pad_left(label, 10, 0);
+        lv_obj_set_style_pad_left(label, 15, 0);
         
         ui_data.menu_items[i] = item;
     }
     
     // 初始化选择索引
     ui_data.current_index = 0;
-    _highlight_selected_item();
     
     // 创建按钮检测定时器
     ui_data.button_timer = lv_timer_create(_button_handler_cb, 50, NULL);
     
     // 设置菜单激活状态
     ui_data.is_active = true;
+    
+    // 执行初始高亮和滚动
+    _highlight_selected_item();
+    
+    // 确保第一个菜单项在视图中央
+    lv_obj_scroll_to_view(lv_obj_get_child(ui_data.menu_list, 0), LV_ANIM_OFF);
+    
+    // 触发一次滚动事件回调，以初始化视觉效果
+    lv_obj_send_event(ui_data.menu_list, LV_EVENT_SCROLL, NULL);
+    
+    // 检查是否是从其他页面返回
+    bool from_other_screen = (lv_scr_act() != NULL && lv_scr_act() != ui_data.screen);
+    
+    // 根据是否从其他页面返回选择加载方式
+    if (from_other_screen) {
+        // 从其他页面返回时使用从左向右滑动效果
+        lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, false);
+    } else {
+        // 首次加载时使用淡入效果
+        lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, false);
+    }
 }
 
-// 删除UI - 修改以确保安全释放资源
-static void _delete_ui(void) {
+// 优化当切换回菜单时调用的函数
+void menu_ui_set_active(void) {
+    // 确保菜单处于活跃状态
+    ui_data.is_active = true;
+    
+    // 检查按钮定时器是否存在并正常工作
+    if (ui_data.button_timer) {
+        lv_timer_resume(ui_data.button_timer);
+        lv_timer_reset(ui_data.button_timer); // 重置定时器，确保它立即开始工作
+    } else {
+        // 如果定时器不存在，创建一个新的
+        ui_data.button_timer = lv_timer_create(_button_handler_cb, 50, NULL);
+    }
+    
+    // 更新高亮显示并滚动到正确位置
+    _highlight_selected_item();
+    
+    // 触发一次滚动事件来更新视觉效果
+    if (ui_data.menu_list) {
+        lv_obj_send_event(ui_data.menu_list, LV_EVENT_SCROLL, NULL);
+    }
+    
+    // 强制完整重绘一次，确保显示正确
+    lv_obj_invalidate(ui_data.screen);
+    lv_refr_now(lv_display_get_default());
+    
     #if UI_DEBUG_ENABLED
-    printf("[MENU] Deleting menu UI\n");
+    printf("[MENU] Menu activated, button timer: %p\n", (void*)ui_data.button_timer);
     #endif
-    
-    // 先停止所有动画，防止动画回调访问已删除对象
-    lv_anim_del_all();
-    
-    // 停止按钮检测定时器，确保不再访问UI元素
-    if (ui_data.button_timer != NULL) {
-        lv_timer_delete(ui_data.button_timer);
-        ui_data.button_timer = NULL;
-        #if UI_DEBUG_ENABLED
-        printf("[MENU] Button timer deleted\n");
-        #endif
-    }
-    
-    // 先将UI标记为不活动，避免异步回调继续操作
-    ui_data.is_active = false;
-    
-    // 清理菜单项数组之前，先保存项数，避免释放后访问
-    uint8_t saved_item_count = ui_data.item_count;
-    ui_data.item_count = 0;  // 先设为0，这样其他函数不会再访问这些项
-    
-    // 释放菜单项数组 - 增加安全检查
-    if (ui_data.menu_items != NULL) {
-        // 添加双重检查
-        lv_obj_t **items_to_free = ui_data.menu_items;
-        ui_data.menu_items = NULL;  // 先置空，防止其他地方继续使用
-        
-        // 安全释放内存
-        lv_free(items_to_free);
-    }
-    
-    // 删除面板前，先保存引用并置空
-    lv_obj_t *panel_to_delete = ui_data.panel;
-    if (panel_to_delete != NULL) {
-        // 先清空引用，确保不会再被访问
-        ui_data.panel = NULL;
-        ui_data.menu_list = NULL;
-        
-        // 删除面板及其所有子对象
-        lv_obj_delete(panel_to_delete);
-    }
-    
-    // 重置其他状态变量
-    ui_data.current_index = 0;
-}
-
-// 显示UI
-static void _show_ui(void) {
-    #if UI_DEBUG_ENABLED
-    printf("[MENU] Showing menu UI\n");
-    #endif
-    
-    if (ui_data.panel != NULL) {
-        // 先确保面板可见
-        lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
-        
-        // 确保当前索引有效
-        if (ui_data.current_index >= ui_data.item_count && ui_data.item_count > 0) {
-            ui_data.current_index = 0;
-        }
-        
-        // 应用高亮效果
-        _highlight_selected_item();
-        
-        // 处理按钮定时器
-        if (ui_data.button_timer != NULL) {
-            // 恢复按钮定时器，确保能响应按钮事件
-            lv_timer_resume(ui_data.button_timer);
-            #if UI_DEBUG_ENABLED
-            printf("[MENU] Button timer resumed\n");
-            #endif
-        } else {
-            // 如果定时器不存在，重新创建
-            ui_data.button_timer = lv_timer_create(_button_handler_cb, 50, NULL);
-            #if UI_DEBUG_ENABLED
-            printf("[MENU] Button timer created\n");
-            #endif
-        }
-        
-        // 最后设置活动状态
-        ui_data.is_active = true;
-        #if UI_DEBUG_ENABLED
-        printf("[MENU] Menu activated\n");
-        #endif
-    }
-}
-
-// 隐藏UI
-static void _hide_ui(void) {
-    if (ui_data.panel != NULL) {
-        lv_obj_add_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
-        ui_data.is_active = false;
-    }
-}
-
-// 更新UI
-static void _update_ui(void) {
-    // 菜单不需要频繁更新
-}
-
-// 获取模块接口
-ui_module_t* menu_ui_get_module(void) {
-    menu_module.create = _create_ui;
-    menu_module.delete = _delete_ui;
-    menu_module.show = _show_ui;
-    menu_module.hide = _hide_ui;
-    menu_module.update = _update_ui;
-    
-    return &menu_module;
 }

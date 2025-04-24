@@ -3,31 +3,22 @@
 #include "../core/ui_manager.h" // 添加UI管理器头文件
 #include "../core/key355.h"     // 添加按钮处理头文件
 #include "../utils/ui_utils.h"
-#include "../utils/ui_rounded.h"
 #include <stdio.h>
 #include <math.h>   // 添加math.h头文件，解决fabs函数未声明问题
-
+#include "menu_ui.h" // 添加菜单UI头文件
 
 // 私有数据结构
 typedef struct {
-    lv_obj_t *panel;         // 主面板
+    lv_obj_t *screen;        // 主屏幕
     lv_obj_t *core_bars[CPU_CORES];  // 核心进度条
     lv_obj_t *core_labels[CPU_CORES];  // 核心百分比标签
     lv_obj_t *temp_label;   // 温度标签
-    lv_timer_t *button_timer;  // 添加：按钮检测定时器
+    lv_timer_t *button_timer;  // 按钮检测定时器
+    lv_timer_t *update_timer;  // 数据更新定时器
     bool is_active;   
 } cpu_ui_data_t;
 
 static cpu_ui_data_t ui_data;
-static ui_module_t cpu_module;
-
-// 私有函数原型
-static void _create_ui(lv_obj_t *parent);
-static void _update_ui(void);
-static void _show_ui(void);
-static void _hide_ui(void);
-static void _delete_ui(void);
-static void _button_handler_cb(lv_timer_t *timer); // 添加按钮处理回调的前向声明
 
 // 增加静态缓存，避免重复计算和更新
 static struct {
@@ -45,192 +36,44 @@ static struct {
     .no_change_counter = 0
 };
 
-// 模块接口实现
-static void cpu_ui_create(lv_obj_t *parent) {
-    _create_ui(parent);
+// 函数前向声明
+static void _update_ui_data(lv_timer_t *timer);
+static void _button_handler_cb(lv_timer_t *timer);
+static void _create_smooth_bar_animation(lv_obj_t *bar, int32_t start_value, int32_t end_value);
+
+// 切换屏幕的动画回调
+static void _slide_anim_cb(void *var, int32_t v) {
+    lv_obj_set_x((lv_obj_t*)var, v);
 }
 
-static void cpu_ui_delete(void) {
-    _delete_ui();
-}
-
-static void cpu_ui_show(void) {
-    _show_ui();
-}
-
-static void cpu_ui_hide(void) {
-    _hide_ui();
-}
-
-static void cpu_ui_update(void) {
-    _update_ui();
-}
-
-// 获取模块接口
-ui_module_t* cpu_ui_get_module(void) {
-    cpu_module.create = cpu_ui_create;
-    cpu_module.delete = cpu_ui_delete;
-    cpu_module.show = cpu_ui_show;
-    cpu_module.hide = cpu_ui_hide;
-    cpu_module.update = cpu_ui_update;
-
-    return &cpu_module;
-}
-
-// 创建CPU监控UI - 优化视觉效果
-static void _create_ui(lv_obj_t *parent) {
-    const lv_font_t *font_small = &lv_font_montserrat_12;
-    const lv_font_t *font_mid = &lv_font_montserrat_16;
-
-    // 苹果设计语言风格配色方案
-    uint32_t color_panel = 0x1E293B;      // 深靛蓝面板色
-    uint32_t color_accent = 0x0EA5E9;     // iOS天蓝色强调色
-
-    // 核心颜色数组 - 单一色调的不同深浅版本
-    uint32_t color_core_bases[CPU_CORES] = {
-        0x0284C7,  // 蓝色基础色 - Core 0
-        0x8B5CF6,  // 紫色基础色 - Core 1
-        0x10B981,  // 绿色基础色 - Core 2
-        0xF59E0B   // 橙色基础色 - Core 3
-    };
-    
-    // 进度条亮色数组 - 用于渐变起点
-    uint32_t color_core_lights[CPU_CORES] = {
-        0x38BDF8,  // 蓝色亮色 - Core 0
-        0xA78BFA,  // 紫色亮色 - Core 1
-        0x34D399,  // 绿色亮色 - Core 2
-        0xFBBF24   // 橙色亮色 - Core 3
-    };
-    
-    // 进度条暗色数组 - 用于渐变终点
-    uint32_t color_core_darks[CPU_CORES] = {
-        0x0369A1,  // 蓝色暗色 - Core 0
-        0x7C3AED,  // 紫色暗色 - Core 1
-        0x059669,  // 绿色暗色 - Core 2
-        0xD97706   // 橙色暗色 - Core 3
-    };
-
-    uint32_t color_text = 0xF9FAFB;       // 近白色文本
-    uint32_t color_text_secondary = 0x94A3B8; // 中灰色次要文本
-
-    // 创建CPU面板 - 苹果风格圆角矩形
-    ui_data.panel = lv_obj_create(parent);
-    lv_obj_set_size(ui_data.panel, 240, 135);
-    lv_obj_align(ui_data.panel, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(ui_data.panel, lv_color_hex(0x1E293B), 0);  // 深靛蓝面板色
-    lv_obj_set_style_border_width(ui_data.panel, 0, 0);
-    lv_obj_set_style_radius(ui_data.panel, 16, 0); // macOS风格圆角
-    lv_obj_set_style_pad_all(ui_data.panel, 15, 0);
-    lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_SCROLLABLE);
-    
-    // 添加渐变 - 统一与其他面板相同的渐变效果
-    lv_obj_set_style_bg_grad_color(ui_data.panel, lv_color_hex(0x334155), 0);  // 使用更浅的渐变色，减少渲染负担
-    lv_obj_set_style_bg_grad_dir(ui_data.panel, LV_GRAD_DIR_VER, 0);
-    
-    // 简化阴影效果，减少渲染负担
-    lv_obj_set_style_shadow_width(ui_data.panel, 15, 0);
-    lv_obj_set_style_shadow_spread(ui_data.panel, 0, 0);
-    lv_obj_set_style_shadow_ofs_y(ui_data.panel, 4, 0);
-    lv_obj_set_style_shadow_color(ui_data.panel, lv_color_hex(0x000000), 0);
-    lv_obj_set_style_shadow_opa(ui_data.panel, LV_OPA_10, 0);
-
-    // CPU标题
-    lv_obj_t *cpu_title = lv_label_create(ui_data.panel);
-    lv_obj_set_style_text_font(cpu_title, font_mid, 0);
-    lv_obj_set_style_text_color(cpu_title, lv_color_hex(color_text), 0);
-    lv_label_set_text(cpu_title, "CPU MONITOR");
-    lv_obj_align(cpu_title, LV_ALIGN_TOP_MID, 0, -5);
-
-    // 进度条设置
-    int bar_height = 6;        // 更细的进度条
-    int bar_width = 150;       // 进度条宽度
-    int vertical_spacing = 22; // 垂直间距
-    int start_y = 20;          // 起始位置
-    int left_margin = 30;      // 左侧边距
-
-    // 计算最后一个进度条的位置，用于后续放置温度容器
-    int last_bar_bottom = start_y + (CPU_CORES - 1) * vertical_spacing + bar_height;
-
-    for(int i = 0; i < CPU_CORES; i++) {
-        // 核心标签
-        lv_obj_t *core_label = lv_label_create(ui_data.panel);
-        lv_obj_set_style_text_font(core_label, font_small, 0);
-        lv_obj_set_style_text_color(core_label, lv_color_hex(color_core_bases[i]), 0);
-        lv_label_set_text_fmt(core_label, "Core%d", i);
-
-        // 创建进度条 - 现代风格
-        lv_obj_t *bar = lv_bar_create(ui_data.panel);
-        lv_obj_set_size(bar, bar_width, bar_height);
-        lv_obj_align(bar, LV_ALIGN_TOP_LEFT, left_margin, start_y + i * vertical_spacing);
-        
-        // 背景设置为半透明
-        lv_obj_set_style_bg_color(bar, lv_color_hex(0x374151), LV_PART_MAIN);
-        lv_obj_set_style_bg_opa(bar, LV_OPA_40, LV_PART_MAIN);
-        
-        // 增强指示器效果 - 添加更细腻的渐变和光效
-        lv_obj_set_style_bg_color(bar, lv_color_hex(color_core_lights[i]), LV_PART_INDICATOR);
-        lv_obj_set_style_bg_grad_color(bar, lv_color_hex(color_core_darks[i]), LV_PART_INDICATOR);
-        lv_obj_set_style_bg_grad_dir(bar, LV_GRAD_DIR_HOR, LV_PART_INDICATOR);
-        
-        // 添加轻微的光泽效果
-        lv_obj_set_style_bg_main_stop(bar, 0, LV_PART_INDICATOR);
-        lv_obj_set_style_bg_grad_stop(bar, 255, LV_PART_INDICATOR);
-        
-        // 增强过渡效果
-        lv_obj_set_style_shadow_width(bar, 3, LV_PART_INDICATOR);  
-        lv_obj_set_style_shadow_color(bar, lv_color_hex(color_core_lights[i]), LV_PART_INDICATOR);
-        lv_obj_set_style_shadow_opa(bar, LV_OPA_20, LV_PART_INDICATOR);
-        lv_obj_set_style_shadow_spread(bar, 0, LV_PART_INDICATOR);
-        lv_obj_set_style_shadow_ofs_x(bar, 0, LV_PART_INDICATOR);
-        lv_obj_set_style_shadow_ofs_y(bar, 0, LV_PART_INDICATOR);
-        
-        // 圆角进度条
-        lv_obj_set_style_radius(bar, bar_height / 2, 0);
-        lv_bar_set_range(bar, 0, 100);
-        lv_bar_set_value(bar, 0, LV_ANIM_OFF);
-        
-        // 对齐标签
-        lv_obj_align_to(core_label, bar, LV_ALIGN_OUT_LEFT_MID, -5, 0);
-
-        // 保存进度条引用
-        ui_data.core_bars[i] = bar;
-
-        // 核心百分比标签 - 初始设为透明
-        ui_data.core_labels[i] = lv_label_create(ui_data.panel);
-        lv_obj_set_style_text_font(ui_data.core_labels[i], font_small, 0);
-        lv_obj_set_style_text_color(ui_data.core_labels[i], lv_color_hex(color_text), 0);
-        lv_obj_set_style_opa(ui_data.core_labels[i], LV_OPA_TRANSP, 0);  // 初始透明，将通过动画显示
-        lv_label_set_text(ui_data.core_labels[i], "0%");
-        lv_obj_align_to(ui_data.core_labels[i], bar, LV_ALIGN_OUT_RIGHT_MID, 5, 0);
+// 简化版返回菜单函数 - 使用LVGL内置动画
+static void _return_to_menu(void) {
+    // 停止定时器，避免切换中的异常刷新
+    if (ui_data.button_timer) {
+        lv_timer_delete(ui_data.button_timer);
+        ui_data.button_timer = NULL;
     }
-
-    // 温度显示容器 - 确保在最后一个进度条下方
-    lv_obj_t *temp_container = lv_obj_create(ui_data.panel);
-    lv_obj_set_size(temp_container, 210, 20); // 合理的高度
-    lv_obj_clear_flag(temp_container, LV_OBJ_FLAG_SCROLLABLE);// 禁用滚动
-    lv_obj_set_scrollbar_mode(temp_container, LV_SCROLLBAR_MODE_OFF);    
     
-    // 放置在最后一个进度条下方，预留足够空间
-    lv_obj_align(temp_container, LV_ALIGN_TOP_MID, 0, last_bar_bottom + 0); 
+    if (ui_data.update_timer) {
+        lv_timer_delete(ui_data.update_timer);
+        ui_data.update_timer = NULL;
+    }
     
-    lv_obj_set_style_bg_color(temp_container, lv_color_hex(color_accent), 0);
-    lv_obj_set_style_bg_opa(temp_container, LV_OPA_10, 0);
-    lv_obj_set_style_radius(temp_container, 12, 0);
-    lv_obj_set_style_border_width(temp_container, 0, 0);
-    lv_obj_set_style_pad_all(temp_container, 5, 0); // 添加适当的内边距
-
-    // 温度标签
-    ui_data.temp_label = lv_label_create(temp_container);
-    lv_obj_set_style_text_font(ui_data.temp_label, font_small, 0);
-    lv_obj_set_style_text_color(ui_data.temp_label, lv_color_hex(color_text), 0);
-    lv_obj_set_style_opa(ui_data.temp_label, LV_OPA_TRANSP, 0);
-    lv_label_set_text(ui_data.temp_label, "Temperature: 0°C");
-    lv_obj_center(ui_data.temp_label);
-
-    // 初始时隐藏面板
-    lv_obj_add_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
-    ui_data.button_timer = lv_timer_create(_button_handler_cb, 50, NULL);
+    // 标记为非活动状态
     ui_data.is_active = false;
+    
+    // 清除实例引用，防止回调函数使用已删除的对象
+    lv_obj_t *current_screen = ui_data.screen;
+    ui_data.screen = NULL;
+    
+    // 创建菜单屏幕（但还不显示）
+    menu_ui_create_screen();
+    
+    // 使用LVGL内置的屏幕切换动画 - 从左向右滑动效果
+    lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, true); // 最后参数true表示自动删除旧屏幕
+    
+    // 激活菜单
+    menu_ui_set_active();
 }
 
 // 增强进度条动画效果 - 超级平滑版
@@ -270,7 +113,7 @@ static void _create_smooth_bar_animation(lv_obj_t *bar, int32_t start_value, int
         // 数值减少时使用更加平滑的过渡
         if (change_magnitude > 30) {
             // 使用更平缓的缓动，避免开始下降太快
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_out); // 改为平缓的ease_out
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
         } else {
             // 小幅下降使用最平缓的缓动
             lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
@@ -278,13 +121,11 @@ static void _create_smooth_bar_animation(lv_obj_t *bar, int32_t start_value, int
     } else {
         // 数值增加时，更温和的上升曲线
         if (change_magnitude > 50) {
-            // 大幅增长移除超调，改用平滑上升
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_out); // 替换overshoot为ease_out
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
         } else if (change_magnitude > 20) {
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out); // 更加平滑的过渡
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
         } else {
-            // 小幅增长用最平滑的方式 - 使用ease_in_out替代不可用的sine
-            lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out); // 修正：使用ease_in_out代替sine
+            lv_anim_set_path_cb(&a, lv_anim_path_ease_in_out);
         }
     }
     
@@ -325,10 +166,10 @@ static void _create_smooth_bar_animation(lv_obj_t *bar, int32_t start_value, int
     }
 }
 
-// 更新UI数据 - 极度平滑版本
-static void _update_ui(void) {
-    // 安全检查 - 确保面板存在且处于活动状态
-    if (!ui_data.panel || !ui_data.is_active) return;
+// 更新UI数据 - 平滑版本
+static void _update_ui_data(lv_timer_t *timer) {
+    // 安全检查 - 确保处于活动状态
+    if (!ui_data.is_active || !ui_data.screen) return;
     
     // ===== 更新频率优化 =====
     uint32_t current_time = lv_tick_get();
@@ -353,10 +194,13 @@ static void _update_ui(void) {
     float overall_usage;
     data_manager_get_cpu(&overall_usage, &cpu_temp);
     
-    // 仅在首次更新或温度变化时更新温度显示
+    // 仅在首次更新或温度变化时更新温度显示 - 使用更简洁的苹果风格格式
     if (ui_cache.first_update || abs((int)cpu_temp - (int)ui_cache.cpu_temp) >= 1) {
         ui_cache.cpu_temp = cpu_temp;
-        lv_label_set_text_fmt(ui_data.temp_label, "Temperature: %d°C", cpu_temp);
+        lv_label_set_text_fmt(ui_data.temp_label, "%d°C", cpu_temp); // 简化为直接显示温度
+        
+        // 确保温度标签可见
+        lv_obj_set_style_opa(ui_data.temp_label, LV_OPA_COVER, 0);
         
         // 温度变化时的微妙动画效果，仅适用于大变化
         if (!ui_cache.first_update && abs((int)cpu_temp - (int)last_cpu_temp) >= 3) {
@@ -478,6 +322,13 @@ static void _update_ui(void) {
     float change_threshold = ui_cache.no_change_counter > 15 ? 3.0f : 4.0f;
     bool needs_invalidate = false; // 跟踪是否需要重绘
     
+    // 在更新过程的开始部分确保所有百分比标签都是可见的
+    for (int i = 0; i < CPU_CORES; i++) {
+        if (ui_data.core_labels[i]) {
+            lv_obj_set_style_opa(ui_data.core_labels[i], LV_OPA_COVER, 0);
+        }
+    }
+    
     for (int i = 0; i < CPU_CORES; i++) {
         float core_usage = core_values[i];
         last_core_values[i] = core_usage; // 更新上次的值，用于下次比较
@@ -511,6 +362,8 @@ static void _update_ui(void) {
                     lv_snprintf(buf, sizeof(buf), "%d%%", (int)target);
                     if (strcmp(lv_label_get_text(ui_data.core_labels[i]), buf) != 0) {
                         lv_label_set_text(ui_data.core_labels[i], buf);
+                        // 确保文本更新后标签始终可见
+                        lv_obj_set_style_opa(ui_data.core_labels[i], LV_OPA_COVER, 0);
                     }
                 }
             }
@@ -520,176 +373,207 @@ static void _update_ui(void) {
     // 只在实际有更新时请求重绘
     if (needs_invalidate) {
         // 使用区域无效化而不是整个面板，减少重绘区域
-        lv_obj_invalidate(ui_data.panel);
+        lv_obj_invalidate(ui_data.screen);
     }
     
     // 重置首次更新标志
     ui_cache.first_update = false;
 }
 
-// 显示UI - 优化版本
-static void _show_ui(void) {
-    // 重置缓存状态
-    ui_cache.first_update = true;
-    
-    // 直接设置面板可见
-    lv_obj_clear_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
-    
-    // 批量设置标签和控件可见
-    for (int i = 0; i < CPU_CORES; i++) {
-        lv_obj_set_style_opa(ui_data.core_labels[i], LV_OPA_COVER, 0);
-        lv_bar_set_value(ui_data.core_bars[i], 0, LV_ANIM_OFF);
-    }
-    lv_obj_set_style_opa(ui_data.temp_label, LV_OPA_COVER, 0);
-    
-    // 添加苹果风格的进入动画
-    ui_utils_page_enter_anim(
-        ui_data.panel,
-        ANIM_SLIDE_LEFT, // 从右向左滑入效果
-        ANIM_DURATION,
-        NULL
-    );
-    
-    // 立即调用一次更新以填充数据
-    _update_ui();
-    ui_data.is_active = true;
-    
-    // 设置数据管理器状态 - 确保使用布尔值
-    data_manager_set_anim_state(false);
-    
-    // 重置更新频率相关参数
-    ui_cache.update_interval = 300;
-    ui_cache.no_change_counter = 0;
-    ui_cache.slow_update_counter = 0;
-    ui_cache.last_update_time = 0;  // 强制首次更新立即发生
-}
-
-// 隐藏UI - 简化版
-static void _hide_ui(void) {
-    if (ui_data.panel) {
-        lv_obj_add_flag(ui_data.panel, LV_OBJ_FLAG_HIDDEN);
-        ui_data.is_active = false; // 添加此行
-    }
-}
-
-// 删除UI - 增强安全性
-static void _delete_ui(void) {
-    #if UI_DEBUG_ENABLED
-    printf("[CPU] Deleting CPU UI resources\n");
-    #endif
-    
-    // 先标记为非活动，防止异步访问
-    ui_data.is_active = false;
-    
-    // 停止所有动画
-    lv_anim_del_all();
-    
-    // 删除按钮定时器
-    if (ui_data.button_timer) {
-        lv_timer_delete(ui_data.button_timer);
-        ui_data.button_timer = NULL;
-        #if UI_DEBUG_ENABLED
-        printf("[CPU] Button timer deleted\n");
-        #endif
-    }
-    
-    // 等待任务处理完成
-    lv_task_handler();
-    
-    if (ui_data.panel) {
-        // 保存临时引用并清空指针
-        lv_obj_t *panel_to_delete = ui_data.panel;
-        
-        // 清空所有指针，防止悬空引用
-        ui_data.panel = NULL;
-        for (int i = 0; i < CPU_CORES; i++) {
-            ui_data.core_bars[i] = NULL;
-            ui_data.core_labels[i] = NULL;
-        }
-        ui_data.temp_label = NULL;
-        
-        // 安全删除面板及其子对象
-        lv_obj_delete(panel_to_delete);
-        #if UI_DEBUG_ENABLED
-        printf("[CPU] Panel deleted\n");
-        #endif
-    }
-    
-    // 重置缓存数据
-    memset(&ui_cache, 0, sizeof(ui_cache));
-    ui_cache.first_update = true;
-}
-
-// 添加一个新的全局变量用于确保模块索引的安全传递
-static uint8_t menu_module_index = 0; // 菜单模块索引始终为0
-
-// 添加安全包装函数，确保正确设置动画状态
-static void _set_anim_state_wrapper(lv_timer_t *timer) {
-    // 安全调用，确保传递false值
-    data_manager_set_anim_state(false);
-}
-
-// 专门用于跳转到菜单的包装函数
-static void _switch_to_menu_wrapper(lv_timer_t *timer) {
-    // 确保动画状态被重置
-    data_manager_set_anim_state(false);
-    
-    // 确保安全跳转到菜单模块
-    #if UI_DEBUG_ENABLED
-    printf("[CPU] Switching to menu module: %d\n", menu_module_index);
-    #endif
-    
-    // 安全调用UI管理器
-    ui_manager_show_module(menu_module_index);
-}
-
-// 改进按钮处理函数
+// 按钮事件处理回调
 static void _button_handler_cb(lv_timer_t *timer) {
-    // 增强安全性检查
-    if (!ui_data.is_active || !ui_data.panel) return;
+    if (!ui_data.is_active || !ui_data.screen) return;
     
     button_event_t event = key355_get_event();
     if (event == BUTTON_EVENT_NONE) return;
     
-    #if UI_DEBUG_ENABLED
-    printf("[CPU] Button event: %d\n", event);
-    #endif
+    // 清除事件标志
+    key355_clear_event();
     
-    // 简化按钮处理逻辑
+    // 处理按钮事件
     switch (event) {
         case BUTTON_EVENT_DOUBLE_CLICK:
-            #if UI_DEBUG_ENABLED
-            printf("[CPU] Double click detected, returning to menu\n");
-            #endif
-            
-            // 标记为非活动状态
-            ui_data.is_active = false;
-            
-            // 停止所有正在进行的动画
-            lv_anim_del_all();
-            
-            // 添加苹果风格退出动画
-            ui_utils_page_exit_anim(
-                ui_data.panel,
-                ANIM_SLIDE_RIGHT,  // 向右滑出
-                ANIM_DURATION,
-                false,
-                NULL
-            );
-            
-            // 确保重置所有状态
-            data_manager_set_anim_state(false);
-            
-            // 延迟切换到菜单界面，使用专用的包装函数而非直接传递索引
-            lv_timer_t *menu_timer = lv_timer_create(
-                _switch_to_menu_wrapper,  // 使用安全包装函数
-                ANIM_DURATION + 50,       // 稍微延迟确保动画完成
-                NULL                      // 不需要传递用户数据，使用全局变量
-            );
-            lv_timer_set_repeat_count(menu_timer, 1);
+            // 双击返回菜单
+            _return_to_menu();
             break;
             
         default:
             break;
     }
+}
+
+// 创建CPU监控屏幕 - 更新布局
+void cpu_ui_create_screen(void) {
+    const lv_font_t *font_small = &lv_font_montserrat_12;
+    const lv_font_t *font_mid = &lv_font_montserrat_14;
+    const lv_font_t *font_large = &lv_font_montserrat_18; // 使用更大字体
+
+    // 创建屏幕
+    ui_data.screen = lv_obj_create(NULL);
+    
+    // 禁用滚动功能
+    lv_obj_clear_flag(ui_data.screen, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollbar_mode(ui_data.screen, LV_SCROLLBAR_MODE_OFF);
+    
+#if LV_USE_DRAW_SW_COMPLEX_GRADIENTS
+    // 定义渐变色 - 紫色到黑色
+    static const lv_color_t grad_colors[2] = {
+        LV_COLOR_MAKE(0x9B, 0x18, 0x42), // 紫红色
+        LV_COLOR_MAKE(0x00, 0x00, 0x00), // 纯黑色
+    };
+    
+    // 初始化渐变描述符
+    static lv_grad_dsc_t grad;
+    lv_grad_init_stops(&grad, grad_colors, NULL, NULL, sizeof(grad_colors) / sizeof(lv_color_t));
+    
+    // 设置径向渐变 - 从中心向四周扩散
+    lv_grad_radial_init(&grad, LV_GRAD_CENTER, LV_GRAD_CENTER, LV_GRAD_RIGHT, LV_GRAD_BOTTOM, LV_GRAD_EXTEND_PAD);
+    
+    // 应用渐变背景 - 修复：移除错误的 & 符号，直接使用对象指针
+    lv_obj_set_style_bg_grad(ui_data.screen, &grad, 0);
+    lv_obj_set_style_bg_opa(ui_data.screen, LV_OPA_COVER, 0);
+#else
+    // 简化背景样式 - 纯黑背景提升对比度
+    lv_obj_set_style_bg_color(ui_data.screen, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_bg_opa(ui_data.screen, LV_OPA_COVER, 0);
+#endif
+    
+    // 核心颜色数组 - 在小屏幕上使用明亮的颜色
+    uint32_t color_core_bases[CPU_CORES] = {
+        0x0A84FF,  // 蓝色 - Core 0
+        0xBF5AF2,  // 紫色 - Core 1
+        0x30D158,  // 绿色 - Core 2
+        0xFF9F0A   // 橙色 - Core 3
+    };
+    
+    uint32_t color_text = 0xFFFFFF;  // 白色文本
+    
+    // 创建标题容器以增强标题醒目度
+    lv_obj_t *title_container = lv_obj_create(ui_data.screen);
+    lv_obj_set_size(title_container, 160, 24);
+    lv_obj_align(title_container, LV_ALIGN_TOP_MID, 0, 4);
+    lv_obj_set_style_bg_color(title_container, lv_color_hex(0x1A1A1A), 0);
+    lv_obj_set_style_bg_opa(title_container, LV_OPA_50, 0);
+    lv_obj_set_style_radius(title_container, 4, 0);
+    lv_obj_set_style_border_width(title_container, 0, 0);
+    lv_obj_clear_flag(title_container, LV_OBJ_FLAG_SCROLLABLE);
+    
+    // 修改标题为更醒目的样式
+    lv_obj_t *cpu_title = lv_label_create(title_container);
+    lv_obj_set_style_text_font(cpu_title, font_large, 0);  // 更大字体
+    lv_obj_set_style_text_color(cpu_title, lv_color_hex(0xFFFFFF), 0);
+    lv_obj_set_style_text_letter_space(cpu_title, 2, 0);  // 增加字间距
+    lv_label_set_text(cpu_title, "CPU MONITOR");
+    lv_obj_center(cpu_title);  // 在容器中居中
+    
+    // 进度条布局优化
+    int bar_height = 6;           // 紧凑进度条高度
+    int bar_width = 160;          // 适当减小进度条宽度以适应Core文本
+    int vertical_spacing = 22;    // 垂直间距
+    int start_y = 36;             // 从顶部开始的位置
+    int left_margin =45;         // 增加左侧留空以适应"Core X"标签
+
+    // 创建核心进度条组
+    for(int i = 0; i < CPU_CORES; i++) {
+        // 核心标签 - 保持"Core X"格式
+        lv_obj_t *core_label = lv_label_create(ui_data.screen);
+        lv_obj_set_style_text_font(core_label, font_small, 0);
+        lv_obj_set_style_text_color(core_label, lv_color_hex(color_core_bases[i]), 0);
+        lv_label_set_text_fmt(core_label, "Core %d", i);
+        
+        // 创建进度条
+        lv_obj_t *bar = lv_bar_create(ui_data.screen);
+        lv_obj_set_size(bar, bar_width, bar_height);
+        lv_obj_align(bar, LV_ALIGN_TOP_LEFT, left_margin, start_y + i * vertical_spacing + 5);
+        
+        // 将Core标签垂直中心与进度条的垂直中心对齐
+        lv_obj_align_to(core_label, bar, LV_ALIGN_OUT_LEFT_MID, -4, 0);
+        
+        // 进度条背景
+        lv_obj_set_style_bg_color(bar, lv_color_hex(0x333333), LV_PART_MAIN);
+        lv_obj_set_style_bg_opa(bar, LV_OPA_50, LV_PART_MAIN);
+        
+        // 进度条指示器
+        lv_obj_set_style_bg_color(bar, lv_color_hex(color_core_bases[i]), LV_PART_INDICATOR);
+        lv_obj_set_style_radius(bar, 3, 0);
+        lv_bar_set_range(bar, 0, 100);
+        lv_bar_set_value(bar, 0, LV_ANIM_OFF);
+        
+        // 保存进度条引用
+        ui_data.core_bars[i] = bar;
+
+        // 核心百分比标签
+        ui_data.core_labels[i] = lv_label_create(ui_data.screen);
+        lv_obj_set_style_text_font(ui_data.core_labels[i], font_small, 0);
+        lv_obj_set_style_text_color(ui_data.core_labels[i], lv_color_hex(color_text), 0);
+        lv_obj_set_width(ui_data.core_labels[i], 30);
+        lv_obj_set_style_text_align(ui_data.core_labels[i], LV_TEXT_ALIGN_LEFT, 0);
+        lv_label_set_text(ui_data.core_labels[i], "0%");
+        lv_obj_align(ui_data.core_labels[i], LV_ALIGN_TOP_LEFT, left_margin + bar_width + 2, start_y + i * vertical_spacing);
+        lv_obj_set_style_opa(ui_data.core_labels[i], LV_OPA_COVER, 0);
+    }
+
+    // 温度显示容器 - 底部居中
+    lv_obj_t *temp_container = lv_obj_create(ui_data.screen);
+    lv_obj_set_size(temp_container, 150, 15);  // 增大容器宽度以容纳更多文字
+    lv_obj_clear_flag(temp_container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_align(temp_container, LV_ALIGN_BOTTOM_MID, 0, 0);
+    
+    // 简化温度容器
+    lv_obj_set_style_bg_opa(temp_container, LV_OPA_0, 0);
+    lv_obj_set_style_border_width(temp_container, 0, 0);
+    lv_obj_set_style_pad_all(temp_container, 0, 0);
+
+    // 温度标签文本
+    lv_obj_t *temp_text = lv_label_create(temp_container);
+    lv_obj_set_style_text_font(temp_text, font_small, 0);
+    lv_obj_set_style_text_color(temp_text, lv_color_hex(color_text), 0);
+    lv_label_set_text(temp_text, " Temperature:");
+    lv_obj_align(temp_text, LV_ALIGN_LEFT_MID, 0, 0);
+
+    // 温度值 - 在温度文本右侧
+    ui_data.temp_label = lv_label_create(temp_container);
+    lv_obj_set_style_text_font(ui_data.temp_label, font_small, 0);
+    lv_obj_set_style_text_color(ui_data.temp_label, lv_color_hex(color_text), 0);
+    lv_label_set_text(ui_data.temp_label, "0°C");
+    lv_obj_align_to(ui_data.temp_label, temp_text, LV_ALIGN_OUT_RIGHT_MID, 4, 0);
+
+    // 温度图标 - 在温度值之后
+    lv_obj_t *temp_icon = lv_label_create(temp_container);
+    lv_obj_set_style_text_font(temp_icon, font_small, 0);
+    lv_obj_set_style_text_color(temp_icon, lv_color_hex(0xFF3B30), 0);
+    lv_label_set_text(temp_icon, LV_SYMBOL_WARNING);
+    lv_obj_align_to(temp_icon, ui_data.temp_label, LV_ALIGN_OUT_RIGHT_MID, 12, 0);
+    
+    // 设置屏幕进入动画 - 简化为只有水平滑动
+    lv_obj_set_x(ui_data.screen, 240); // 初始位置在屏幕右侧外
+    
+    // 动画时长优化
+    uint32_t anim_time = 260;
+    
+    // X轴滑动动画
+    lv_anim_t a_x;
+    lv_anim_init(&a_x);
+    lv_anim_set_var(&a_x, ui_data.screen);
+    lv_anim_set_values(&a_x, 240, 0);
+    lv_anim_set_time(&a_x, anim_time);
+    lv_anim_set_exec_cb(&a_x, _slide_anim_cb);
+    lv_anim_set_path_cb(&a_x, lv_anim_path_ease_out);
+    lv_anim_start(&a_x);
+    
+    // 创建按钮处理定时器
+    ui_data.button_timer = lv_timer_create(_button_handler_cb, 50, NULL);
+    
+    // 创建数据更新定时器
+    ui_data.update_timer = lv_timer_create(_update_ui_data, 300, NULL);
+    
+    // 设置为活动状态
+    ui_data.is_active = true;
+    
+    // 首次更新数据
+    ui_cache.first_update = true;
+    _update_ui_data(NULL);
+    
+    // 直接使用LVGL内置的屏幕切换动画 
+    lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, false);
 }

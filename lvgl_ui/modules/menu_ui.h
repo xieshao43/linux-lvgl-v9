@@ -3,13 +3,18 @@
 
 #include "../common.h"
 #include "../utils/ui_utils.h"
-#include "../core/ui_manager.h"
 #include "../core/key355.h"
 
 /**
- * 获取菜单模块接口
- * @return 菜单模块接口
+ * 创建菜单屏幕
+ * 使用LVGL原生屏幕管理替代模块化架构
  */
-ui_module_t* menu_ui_get_module(void);
+void menu_ui_create_screen(void);
+
+/**
+ * 设置菜单为活动状态
+ * 当从其他页面返回菜单时调用
+ */
+void menu_ui_set_active(void);
 
 #endif // MENU_UI_H

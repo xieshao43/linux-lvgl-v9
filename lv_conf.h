@@ -148,7 +148,7 @@
  * It should be at least `LV_DRAW_LAYER_SIMPLE_BUF_SIZE` sized but if transformed layers are also used
  * it should be enough to store the largest widget too (width x height x 4 area).
  * Set it to 0 to have no limit. */
-#define LV_DRAW_LAYER_MAX_MEMORY 0  /**< No limit by default [bytes]*/
+#define LV_DRAW_LAYER_MAX_MEMORY (16 * 1024 * 1024)   /**< No limit by default [bytes]*/
 
 /** Stack size of drawing thread.
  * NOTE: If FreeType or ThorVG is enabled, it is recommended to set it to 32KB or more.
@@ -439,11 +439,11 @@
  *  If size is not set to 0, the decoder will fail to decode when the cache is full.
  *  If size is 0, the cache function is not enabled and the decoded memory will be
  *  released immediately after use. */
-#define LV_CACHE_DEF_SIZE       0
+#define LV_CACHE_DEF_SIZE       1
 
 /** Default number of image header cache entries. The cache is used to store the headers of images
  *  The main logic is like `LV_CACHE_DEF_SIZE` but for image headers. */
-#define LV_IMAGE_HEADER_CACHE_DEF_CNT 0
+#define LV_IMAGE_HEADER_CACHE_DEF_CNT 1
 
 /** Number of stops allowed per gradient. Increase this to allow more stops.
  *  This adds (sizeof(lv_color_t) + 1) bytes per additional stop. */
@@ -964,8 +964,8 @@
 
 /*SVG library
  *  - Requires `LV_USE_VECTOR_GRAPHIC = 1` */
-#define LV_USE_SVG 0
-#define LV_USE_SVG_ANIMATION 0
+#define LV_USE_SVG 1
+#define LV_USE_SVG_ANIMATION 1
 #define LV_USE_SVG_DEBUG 0
 
 /** FFmpeg library for image decoding and playing videos.

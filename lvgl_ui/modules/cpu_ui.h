@@ -2,12 +2,14 @@
 #define CPU_UI_H
 
 #include "../common.h"
-#include "../core/key355.h"  // 添加此行
+#include "../core/data_manager.h"
+#include "../core/key355.h"
+#include "../utils/ui_utils.h"
 
 /**
- * 获取CPU监控模块接口
- * @return CPU监控模块接口
+ * 创建CPU监控屏幕
+ * 使用LVGL原生屏幕管理替代模块化架构
  */
-ui_module_t* cpu_ui_get_module(void);
+void cpu_ui_create_screen(void);
 
 #endif // CPU_UI_H
