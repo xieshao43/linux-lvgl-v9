@@ -75,39 +75,71 @@ static void _menu_scroll_event_cb(lv_event_t *e)
         int32_t diff_y = child_y_center - cont_y_center;
         int32_t abs_diff_y = LV_ABS(diff_y);
         
-        // 使用非线性函数计算X位置 - 贝塞尔曲线实现平滑过渡
+        // X位置计算 - 中心项居中，非中心项右移
         int32_t x;
-        if(abs_diff_y >= r) {
-            x = r;
+        if(abs_diff_y < 5) {
+            // 中心项居中显示
+            x = 0;
         } else {
-            // 应用贝塞尔缓动函数，使动画更自然
-            int32_t bezier_diff = _bezier_ease_out(abs_diff_y, r);
-            
-            // 使用改进的平方根计算，确保平滑过渡
-            uint32_t x_sqr = r * r - bezier_diff * bezier_diff;
-            lv_sqrt_res_t res;
-            lv_sqrt(x_sqr, &res, 0x8000);
-            x = r - res.i;
-            
-            // 限制最小X值，确保项目不会完全重叠
-            x = LV_MAX(x, 5);
+            // 非中心项右移，距离越远偏移越大
+            x = 35 + (abs_diff_y * 25) / r; // 基础偏移35像素，最大可达约60像素
         }
         
-        // 应用X轴平移效果 - 使用缓动函数使过渡更加平滑
+        // 应用X轴平移效果
         lv_obj_set_style_translate_x(item, x, 0);
         
-        // 应用透明度缩放效果 - 使用非线性透明度变化曲线
-        lv_opa_t base_opa = LV_OPA_COVER - (LV_OPA_COVER * x / r) / 3;  // 减小透明度变化范围
-        lv_obj_set_style_opa(item, base_opa, 0); 
+        // 获取内容容器和文本组件
+        lv_obj_t *content = lv_obj_get_child(item, 0);
+        if(!content) continue;
         
-        // 应用缩放效果 - 非活跃项变小，使用非线性缩放曲线
-        int32_t scale_factor = 256 - ((x * 40) / r); // 从100%到大约85%的缩放
+        lv_obj_t *icon = lv_obj_get_child(content, 0);
+        lv_obj_t *label = lv_obj_get_child(content, 1);
+        
+        // 应用透明度效果 - 中心项最清晰，其他项半透明
+        lv_opa_t base_opa;
+        if(abs_diff_y < 5) {
+            // 中心项完全不透明
+            base_opa = LV_OPA_COVER;
+        } else {
+            // 其他项半透明 - 但不要太透明
+            base_opa = LV_OPA_COVER - (LV_OPA_COVER * abs_diff_y / r) / 3;  // 减少透明度变化幅度
+            base_opa = LV_MAX(base_opa, LV_OPA_70); // 修复：使用正确的变量名base_opa而不是base_pa
+        }
+        
+        // 设置项目背景透明度
+        lv_obj_set_style_opa(item, base_opa, 0);
+        
+        // 修复：确保所有文本标签都显示，无论是否为中心项
+        if(icon) {
+            // 图标文本总是可见
+            lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0);
+            lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
+        }
+        
+        if(label) {
+            // 标签文本总是可见
+            lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
+            lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+        }
+        
+        // 应用缩放效果 - 中心项最大，其他项稍小
+        int32_t scale_factor;
+        if(abs_diff_y < 5) {
+            scale_factor = 256; // 中心项100%大小
+        } else {
+            scale_factor = 256 - ((abs_diff_y * 50) / r); // 其他项缩小
+            scale_factor = LV_MAX(scale_factor, 220); // 最小尺寸约85%
+        }
         lv_obj_set_style_transform_zoom(item, scale_factor, 0);
         
-        // 添加旋转效果 - 根据距离中心远近添加微小角度旋转
-        int8_t rotation = diff_y > 0 ? 2 : -2;  // 根据位置决定旋转方向
-        int8_t actual_rotation = (rotation * x) / r; // 旋转角度随距离增加而增加
-        lv_obj_set_style_transform_angle(item, actual_rotation * 10, 0); // *10 因为LVGL中角度单位是0.1度
+        // 添加微小的旋转效果 - 增强视觉区分度
+        int8_t rotation = 0;
+        if(diff_y > 5) {
+            rotation = 3; // 下方项顺时针微旋转
+        } else if(diff_y < -5) {
+            rotation = -3; // 上方项逆时针微旋转
+        }
+        lv_obj_set_style_transform_angle(item, rotation * 10, 0); // *10 因为LVGL中角度单位是0.1度
     }
 }
 
@@ -158,15 +190,15 @@ static void _highlight_anim_cb(void *var, int32_t value) {
     lv_obj_set_style_shadow_color(item, lv_color_hex(0x29B6F6), 0);
     lv_obj_set_style_shadow_opa(item, (trans * LV_OPA_40) / 255, 0);
     
-    // 5. 高对比度文本 - 平滑过渡
+    // 5. 高对比度文本 - 平滑过渡 - 确保文字始终可见
     if (icon) {
         lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_text_opa(icon, (trans * LV_OPA_COVER) / 255, 0);
+        lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0); // 始终完全不透明
     }
     
     if (label) {
         lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_text_opa(label, (trans * LV_OPA_COVER) / 255, 0);
+        lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0); // 始终完全不透明
         
         // 动态调整文字大小
         uint8_t font_size = 14 + ((trans * 2) / 255); // 从14到16
@@ -198,29 +230,41 @@ static void _unhighlight_anim_cb(void *var, int32_t value) {
     
     // 还原非高亮状态 - 渐变透明效果
     if (trans < 10) {
-        // 当值接近0时，重置所有高亮效果
+        // 当值接近0时，重置所有高亮效果，但保持文字可见
         lv_obj_set_style_bg_opa(item, LV_OPA_40, 0);
         lv_obj_set_style_bg_main_opa(item, LV_OPA_40, 0);
         lv_obj_set_style_bg_grad_opa(item, LV_OPA_40, 0);
         lv_obj_set_style_border_width(item, 0, 0);
         lv_obj_set_style_shadow_opa(item, LV_OPA_0, 0);
         
-        // 恢复普通文本样式
+        // 恢复普通文本样式 - 但确保文本仍然可见
         if (label) {
             lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
             lv_obj_set_style_text_letter_space(label, 0, 0);
+            lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
+            lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0); // 确保文本完全可见
+        }
+        
+        // 确保图标也是可见的
+        if (icon) {
+            lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
+            lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0); // 确保图标完全可见
         }
     } else {
-        // 渐变过渡
+        // 渐变过渡 - 背景效果淡出但保持文本可见
         lv_obj_set_style_bg_main_opa(item, (trans * LV_OPA_80) / 255, 0);
         lv_obj_set_style_bg_grad_opa(item, (trans * LV_OPA_0) / 255, 0);
         lv_obj_set_style_border_opa(item, (trans * LV_OPA_70) / 255, 0);
         lv_obj_set_style_shadow_opa(item, (trans * LV_OPA_40) / 255, 0);
+        
+        // 确保文本和图标在过渡期间始终可见
+        if (icon) {
+            lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0);
+        }
+        if (label) {
+            lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);
+        }
     }
-    
-    // 调整文本不透明度
-    if (icon) lv_obj_set_style_text_opa(icon, (trans * LV_OPA_COVER) / 255, 0);
-    if (label) lv_obj_set_style_text_opa(label, (trans * LV_OPA_COVER) / 255, 0);
 }
 
 // 使用动画平滑切换选中的菜单项
@@ -252,7 +296,7 @@ static void _highlight_selected_item(void) {
             lv_anim_init(&a);
             lv_anim_set_var(&a, prev_item);
             lv_anim_set_values(&a, 255, 0);
-            lv_anim_set_time(&a, 200);
+            lv_anim_set_time(&a, 500);
             lv_anim_set_exec_cb(&a, _unhighlight_anim_cb);
             lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
             lv_anim_start(&a);
@@ -268,7 +312,7 @@ static void _highlight_selected_item(void) {
             lv_anim_init(&a);
             lv_anim_set_var(&a, current_item);
             lv_anim_set_values(&a, 0, 255);
-            lv_anim_set_time(&a, 300);
+            lv_anim_set_time(&a, 500);
             lv_anim_set_exec_cb(&a, _highlight_anim_cb);
             lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
             lv_anim_start(&a);
@@ -426,7 +470,7 @@ void menu_ui_create_screen(void) {
     lv_obj_set_scroll_snap_y(ui_data.menu_list, LV_SCROLL_SNAP_CENTER); // 强制吸附到中心
     
     // 设置自定义滚动动画参数
-    lv_obj_set_style_anim_time(ui_data.menu_list, 300, 0); // 延长动画时间
+    lv_obj_set_style_anim_time(ui_data.menu_list, 500, 0); // 延长动画时间
     
     // 添加圆形滚动效果事件
     lv_obj_add_event_cb(ui_data.menu_list, _menu_scroll_event_cb, LV_EVENT_SCROLL, NULL);
@@ -507,14 +551,14 @@ void menu_ui_create_screen(void) {
         lv_obj_t *icon = lv_label_create(content);
         lv_obj_set_style_text_font(icon, &lv_font_montserrat_16, 0);
         lv_obj_set_style_text_color(icon, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_text_opa(icon, LV_OPA_90, 0);                    // 高不透明度确保清晰可见
+        lv_obj_set_style_text_opa(icon, LV_OPA_COVER, 0);  // 确保图标始终可见
         lv_label_set_text(icon, menu_icons[i]);
         
         // 创建标签 - 使用清晰但柔和的白色文字
         lv_obj_t *label = lv_label_create(content);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
         lv_obj_set_style_text_color(label, lv_color_hex(0xFFFFFF), 0);
-        lv_obj_set_style_text_opa(label, LV_OPA_90, 0);  // 修改: 使用有效的LV_OPA_90替代LV_OPA_95
+        lv_obj_set_style_text_opa(label, LV_OPA_COVER, 0);  // 修复：应该设置label的不透明度，而不是icon
         lv_label_set_text(label, menu_items[i]);
         lv_obj_set_style_pad_left(label, 15, 0);
         

@@ -562,7 +562,7 @@ void cpu_ui_create_screen(void) {
     lv_anim_start(&a_x);
     
     // 创建按钮处理定时器
-    ui_data.button_timer = lv_timer_create(_button_handler_cb, 50, NULL);
+    ui_data.button_timer = lv_timer_create(_button_handler_cb, 100, NULL);
     
     // 创建数据更新定时器
     ui_data.update_timer = lv_timer_create(_update_ui_data, 300, NULL);
