@@ -1,4 +1,6 @@
-# linux_lvgl_V9.0
+# linux_lvgl_V9.2！
+
+Now u could enjoy u minibord in lvgl world eassily
 
 # Install steps:
 
