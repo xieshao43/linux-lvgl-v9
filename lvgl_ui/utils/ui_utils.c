@@ -555,6 +555,7 @@ static void _zoom_anim_ready_cb(lv_anim_t *a) {
     
     // 提前开始淡出菜单项，使过渡更平滑
     if (old_screen) {
+        lv_obj_clean(old_screen);
         uint32_t child_count = lv_obj_get_child_count(old_screen);
         for (uint32_t i = 0; i < child_count; i++) {
             lv_obj_t *child = lv_obj_get_child(old_screen, i);
@@ -563,7 +564,7 @@ static void _zoom_anim_ready_cb(lv_anim_t *a) {
                 lv_anim_t fade_anim;
                 lv_anim_init(&fade_anim);
                 lv_anim_set_var(&fade_anim, child);
-                lv_anim_set_time(&fade_anim, 180); // 更快的淡出速度
+                lv_anim_set_time(&fade_anim, 200); // 更快的淡出速度
                 lv_anim_set_values(&fade_anim, LV_OPA_COVER, LV_OPA_0);
                 lv_anim_set_exec_cb(&fade_anim, (lv_anim_exec_xcb_t)lv_obj_set_style_opa);
                 lv_anim_set_path_cb(&fade_anim, lv_anim_path_ease_in); // 使用ease-in让淡出更自然
@@ -581,7 +582,7 @@ static void _zoom_anim_ready_cb(lv_anim_t *a) {
         
         // 使用正常C函数而不是lambda，并正确设置用户数据
         lv_timer_t *delayed_load = lv_timer_create(_delayed_load_timer_cb, 
-                                                  150, // 150ms延迟
+                                                  50, // 150ms延迟
                                                   timer_data);
                                                   
         if (!delayed_load) {
@@ -679,7 +680,7 @@ void ui_utils_zoom_transition(lv_obj_t *selected_item, void (*create_screen_func
     
     // 创建卡片动画序列 - 优化时序
     lv_anim_t a_pos_x, a_pos_y, a_width, a_height, a_radius, a_color, a_glass;
-    uint16_t anim_time = 320; // 增加动画时间使过渡更加平滑
+    uint16_t anim_time = 400; // 增加动画时间使过渡更加平滑
     
     // 1. 位置X动画 - 使用缓动函数创造更自然的运动
     lv_anim_init(&a_pos_x);

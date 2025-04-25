@@ -427,5 +427,5 @@ void storage_ui_create_screen(void) {
     _start_arc_animation();
     
     // 直接使用LVGL内置的屏幕切换动画 - 淡入效果
-    lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, false);
+    lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, true);
 }

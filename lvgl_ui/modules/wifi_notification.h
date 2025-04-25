@@ -2,7 +2,6 @@
 #define WIFI_NOTIFICATION_H
 
 #include "../lvgl.h"
-#include "../core/ui_manager.h"
 
 /**
  * WiFi connection states

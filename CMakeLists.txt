@@ -151,6 +151,7 @@ endfunction()
 collect_existing_sources(LVGL_UI_CORE_SRC "lvgl_ui/core/*.c")
 collect_existing_sources(LVGL_UI_MODULES_SRC "lvgl_ui/modules/*.c")
 collect_existing_sources(LVGL_UI_UTILS_SRC "lvgl_ui/utils/*.c")
+collect_existing_sources(LVGL_UI_LOTTIE_SRC "lvgl_ui/lotties/*.c") # 明确收集lottie文件夹中的源文件
 collect_existing_sources(LVGL_UI_ROOT_SRC "lvgl_ui/*.c")
 
 # 合并所有存在的源文件
@@ -159,6 +160,7 @@ set(LVGL_UI_SRC
     ${LVGL_UI_CORE_SRC}
     ${LVGL_UI_MODULES_SRC}
     ${LVGL_UI_UTILS_SRC}
+    ${LVGL_UI_LOTTIE_SRC} # 添加lottie源文件到编译列表
 )
 
 # 将被删除文件的引用问题输出为警告而不是错误
@@ -173,7 +175,10 @@ target_include_directories(lvgl_linux PRIVATE ${LV_LINUX_INC} ${PROJECT_SOURCE_D
 add_executable(lvglsim src/main.c ${LV_LINUX_SRC} ${LV_LINUX_BACKEND_SRC} ${LVGL_UI_SRC})
 
 # 添加lvgl_ui到包含路径
-target_include_directories(lvglsim PRIVATE ${PROJECT_SOURCE_DIR}/lvgl_ui)
+target_include_directories(lvglsim PRIVATE 
+    ${PROJECT_SOURCE_DIR}/lvgl_ui
+    ${PROJECT_SOURCE_DIR}/lvgl_ui/lottie # 添加lottie目录到包含路径
+)
 
 target_link_libraries(lvglsim lvgl_linux lvgl lvgl::examples lvgl::demos lvgl::thorvg m pthread ${PKG_CONFIG_LIB})
 

@@ -575,5 +575,5 @@ void cpu_ui_create_screen(void) {
     _update_ui_data(NULL);
     
     // 直接使用LVGL内置的屏幕切换动画 
-    lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, false);
+    lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, true);
 }

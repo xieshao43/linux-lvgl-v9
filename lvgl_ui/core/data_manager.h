@@ -5,7 +5,6 @@
 #include "../common.h"
 
 #include "../common.h"
-#include "../utils/ui_perf_mgr.h" // 添加性能管理器头文件
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,6 +84,10 @@ uint8_t data_manager_get_cpu_core_count(void);
  */
 void data_manager_set_anim_state(bool is_animating);
 
+/**
+ * 检查数据管理器是否已初始化
+ * @return 是否已初始化
+ */
 bool data_manager_is_initialized(void);
 
 /**

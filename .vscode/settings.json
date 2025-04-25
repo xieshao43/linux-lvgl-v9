@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "lvgl.h": "c",
+        "lv_lottie.h": "c",
+        "lv_api_map_v9_1.h": "c",
+        "music_ui.h": "c"
+    }
+}

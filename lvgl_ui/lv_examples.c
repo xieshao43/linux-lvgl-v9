@@ -1,4 +1,9 @@
-#include "lv_examples.h"
+#include "lvgl.h"
+#include "core/data_manager.h" // 添加数据管理器头文件，解决data_manager_deinit隐式声明
+#include "core/key355.h"       // 添加按键处理头文件
+#include "modules/menu_ui.h"   // 添加菜单UI头文件
+#include "modules/wifi_manager.h" // 添加WiFi管理器头文件
+#include "modules/wifi_notification.h" // 添加WiFi通知头文件
 
 // 添加全局更新定时器
 static lv_timer_t *global_update_timer = NULL;

@@ -1,6 +1,16 @@
 #include "data_manager.h"
-#include "ui_manager.h" // 添加UI管理器头文件
+#include "../utils/ui_perf_mgr.h" // 添加性能管理器头文件，解决ui_perf_mgr_set_system_load隐式声明
 
+// 移除UI管理器头文件，使用回调函数替代
+// #include "ui_manager.h" mgr.h"
+
+// 添加回调函数声明
+typedef uint8_t (*get_active_module_cb_t)(void);
+typedef void (*set_system_load_cb_t)(uint8_t, uint8_t, uint8_t);
+
+// 添加回调函数变量
+static get_active_module_cb_t get_active_module_cb = NULL;
+static set_system_load_cb_t set_system_load_cb = NULL;
 
 // 添加前向声明，解决隐式声明问题
 static bool _try_update_all_data(void);
@@ -388,7 +398,7 @@ static bool _read_memory_data(void) {
     return data_changed;
 }
 
-// 改进当前的轮询式数据收集 - 实现智能更新策略
+// 改进当前的轮询式数据收集 - 优化集成性能
 bool data_manager_update(void) {
     static uint32_t last_storage_time = 0;
     static uint32_t last_cpu_time = 0;
@@ -426,9 +436,11 @@ bool data_manager_update(void) {
         should_update_storage &= (current_time - last_storage_time >= storage_intervals[0] * 3);
     }
     
-    // 使用预测性能效率的Apple Intelligent Tracking方式，智能决定要更新的数据
-    // 基于当前活跃的模块和用户交互历史，优先更新最可能被查看的数据
-    uint8_t active_module = ui_manager_get_active_module();
+    // 使用回调获取活动模块 - 避免直接依赖
+    uint8_t active_module = 0;
+    if (get_active_module_cb != NULL) {
+        active_module = get_active_module_cb();
+    }
     
     // 优先更新当前显示模块所需的数据
     if (active_module == 1) {  // 存储模块
@@ -499,12 +511,22 @@ bool data_manager_update(void) {
         }
     }
     
-    // 如果开启了性能监控，传递系统负载数据
-    ui_perf_mgr_set_system_load(
-        (uint8_t)cpu_usage,         // CPU负载
-        (uint8_t)((memory_used * 100) / memory_total), // 内存压力
-        cpu_temp                    // CPU温度
-    );
+    // 优化系统负载数据传递 - 先检查回调是否存在
+    if (set_system_load_cb != NULL) {
+        // 优先使用回调函数
+        set_system_load_cb(
+            (uint8_t)cpu_usage,
+            (uint8_t)((memory_used * 100) / memory_total),
+            cpu_temp
+        );
+    } else {
+        // 回调不存在时，使用直接调用（兼容现有实现）
+        ui_perf_mgr_set_system_load(
+            (uint8_t)cpu_usage,
+            (uint8_t)((memory_used * 100) / memory_total),
+            cpu_temp
+        );
+    }
     
     // 动画期间确保UI得到更新
     if (anim_in_progress) {
@@ -514,6 +536,7 @@ bool data_manager_update(void) {
     return any_data_changed || was_data_changed || data_changed;
 }
 
+// 初始化数据管理器
 // 初始化数据管理器
 void data_manager_init(const char *path) {
     if (path) {
@@ -528,6 +551,10 @@ void data_manager_init(const char *path) {
     
     // 设置初始化标志
     is_initialized = true;
+    
+    #if UI_DEBUG_ENABLED
+    printf("[DATA_MGR] Initialized with defaults\n");
+    #endif
 }
 
 // 动画开始时调用此函数 - 增强线程安全性
@@ -640,18 +667,43 @@ void data_manager_notify_user_activity(void) {
     }
 }
 
-
-
-
-
-// 在析构函数开头重置
+// 完善deinit函数实现
 void data_manager_deinit(void) {
     is_initialized = false;
-    // 现有代码...
+    
+    // 清空回调函数
+    get_active_module_cb = NULL;
+    set_system_load_cb = NULL;
+    
+    // 重置所有数据
+    storage_total = 0;
+    storage_used = 0;
+    memory_total = 0;
+    memory_used = 0;
+    cpu_usage = 0.0;
+    cpu_temp = 0;
+    
+    for (int i = 0; i < CPU_CORES; i++) {
+        cpu_core_usage[i] = 0.0;
+    }
+    
+    #if UI_DEBUG_ENABLED
+    printf("[DATA_MGR] Deinitialized\n");
+    #endif
 }
 
 // 实现检查函数
 bool data_manager_is_initialized(void) {
     return is_initialized;
+}
+
+// 新增: 注册活动模块回调函数，与UI管理器集成
+void data_manager_register_module_callback(void* cb) {
+    get_active_module_cb = (get_active_module_cb_t)cb;
+}
+
+// 新增: 注册系统负载回调函数，优化与性能管理器的集成
+void data_manager_register_system_load_callback(void* cb) {
+    set_system_load_cb = (set_system_load_cb_t)cb;
 }
 

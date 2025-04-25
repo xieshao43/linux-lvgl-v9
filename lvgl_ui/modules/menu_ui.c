@@ -1,6 +1,8 @@
 #include "menu_ui.h"
 #include "storage_ui.h"
-#include "cpu_ui.h" // 添加这个头文件引用
+#include "cpu_ui.h" 
+#include "music_ui.h"
+#include "AI_ui.h" // 添加AI UI头文件引用
 
 // 私有数据结构
 typedef struct {
@@ -20,7 +22,7 @@ static menu_ui_data_t ui_data;
 static const char* menu_items[MENU_ITEM_COUNT] = {
     "Storage",
     "CPU",
-    "Intelligence",
+    "Clifford",
     "Music"  
 };
 
@@ -36,8 +38,8 @@ static const char* menu_icons[MENU_ITEM_COUNT] = {
 static void (*create_screen_functions[MENU_ITEM_COUNT])(void) = {
     storage_ui_create_screen,   // 存储屏幕创建函数
     cpu_ui_create_screen,       // CPU屏幕创建函数
-    NULL,                       // Intelligence屏幕创建函数（待实现）
-    NULL                        // 音乐屏幕创建函数（待实现）
+    AI_ui_create_screen,        // Intelligence屏幕创建函数（已实现）
+    music_ui_create_screen      // 音乐屏幕创建函数
 };
 
 // 增加非线性动画辅助函数，实现贝塞尔曲线过渡效果
@@ -353,7 +355,7 @@ static void _screen_load_with_zoom_animation(uint8_t screen_index) {
         lv_obj_t *selected_item = ui_data.menu_items[ui_data.current_index];
         if (selected_item) {
             // 使用通用工具函数实现缩放过渡动画
-            ui_utils_zoom_transition(selected_item, create_screen_functions[screen_index]);
+            ui_utils_zoom_transition(selected_item, create_screen_functions[screen_index]);         
         }
     }
 }
@@ -527,7 +529,7 @@ void menu_ui_create_screen(void) {
         lv_obj_set_style_shadow_ofs_x(item, 5, 0);       // 右移阴影创造左侧明亮效果
         lv_obj_set_style_shadow_ofs_y(item, 0, 0);
         lv_obj_set_style_shadow_color(item, lv_color_hex(0xffffff), 0);
-        lv_obj_set_style_shadow_opa(item, LV_OPA_20, 0);  // 修改: 使用有效的LV_OPA_20替代LV_OPA_15
+        lv_obj_set_style_shadow_opa(item, LV_OPA_20, 0);  // 修改: 使用有效的LV_OPA_20
         
         // 添加微妙的外阴影增强立体感
         lv_obj_set_style_shadow_width(item, 8, LV_STATE_DEFAULT | LV_PART_MAIN);
@@ -588,11 +590,11 @@ void menu_ui_create_screen(void) {
     
     // 根据是否从其他页面返回选择加载方式
     if (from_other_screen) {
-        // 从其他页面返回时使用从左向右滑动效果
-        lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, false);
+        // 从其他页面返回时使用
+        lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, true);
     } else {
         // 首次加载时使用淡入效果
-        lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, false);
+        lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, true);
     }
 }
 
@@ -618,9 +620,9 @@ void menu_ui_set_active(void) {
         lv_obj_send_event(ui_data.menu_list, LV_EVENT_SCROLL, NULL);
     }
     
-    // 强制完整重绘一次，确保显示正确
-    lv_obj_invalidate(ui_data.screen);
-    lv_refr_now(lv_display_get_default());
+   
+    //lv_obj_invalidate(ui_data.screen);
+    //lv_refr_now(lv_display_get_default());浪费了太多性能，而且导致不流畅卡顿，暂时不需要
     
     #if UI_DEBUG_ENABLED
     printf("[MENU] Menu activated, button timer: %p\n", (void*)ui_data.button_timer);
