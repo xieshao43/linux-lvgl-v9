@@ -616,7 +616,7 @@ void wifi_notification_show(wifi_state_t state, const char *ssid) {
     if (auto_hide_timer) {
         lv_timer_del(auto_hide_timer);
     }
-    auto_hide_timer = lv_timer_create(hide_notification_timer_cb, 5000, NULL);
+    auto_hide_timer = lv_timer_create(hide_notification_timer_cb, 3000, NULL);  // 从5000改为3000，将自动隐藏时间从5秒缩短为3秒
     lv_timer_set_repeat_count(auto_hide_timer, 1);
 }
 

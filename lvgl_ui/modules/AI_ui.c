@@ -10,6 +10,8 @@
 #define COLOR_TEXT_PRIMARY  lv_color_hex(0xFFFFFF)
 #define COLOR_TEXT_SECONDARY lv_color_hex(0xDDDDDD)
 #define COLOR_AI_PRIMARY    lv_color_hex(0x3498DB) // 添加AI主题蓝色
+#define COLOR_AI_TITLE      lv_color_hex(0x00FFFF) // 保留用户喜欢的青色标题
+#define COLOR_AI_TEXT       lv_color_hex(0xB0D0E0) // 柔和的银蓝色文本更优雅的配色
 
 // 动画时间常量
 #define ANIM_TIME_DEFAULT   300
@@ -25,6 +27,7 @@ typedef struct {
     lv_obj_t *dialog_container;  // 对话容器
     lv_obj_t *dialog_text;       // 对话文本
     lv_timer_t *button_timer;    // 按钮检测定时器
+    lv_timer_t *scroll_timer;    // 滚动定时器
     bool is_active;              // 是否活动状态
 } ai_ui_data_t;
 
@@ -41,13 +44,14 @@ static ai_ui_data_t ui_data = {0};
 // AI示例数据
 static ai_info_t current_ai = {
     .title = "Clifford",
-    .status = "ACTIVE",
     .dialog = "Welcome to AI Assistant!\n\n> How can I help you today?\n\n> I can process text and image queries\n\n> I can answer questions and provide information\n\n> Double-click to return to main menu\n\n> This interface demonstrates AI capabilities\n\n> Try different voice commands\n\n> Ask me about weather, news, or facts"
 };
 
 // 函数前向声明
 static void return_to_menu(void);
 static void button_event_timer_cb(lv_timer_t *timer);
+static void start_text_autoscroll(void);
+static void scroll_text_timer_cb(lv_timer_t *timer);
 
 // AI界面创建函数
 void AI_ui_create_screen(void) {
@@ -77,90 +81,73 @@ void AI_ui_create_screen(void) {
     
     lv_obj_clear_flag(ui_data.screen, LV_OBJ_FLAG_SCROLLABLE);
     
-    // 创建标题 - 顶部居中
+    // 创建标题 - 直接创建标题标签，类似音乐界面
     ui_data.title = lv_label_create(ui_data.screen);
-    lv_obj_set_style_text_font(ui_data.title, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(ui_data.title, COLOR_TEXT_PRIMARY, 0);
-    lv_obj_set_width(ui_data.title, 220);
+    lv_obj_set_style_text_font(ui_data.title, &lv_font_montserrat_20, 0); // 更大的字体
+    lv_obj_set_style_text_color(ui_data.title, COLOR_AI_TITLE, 0); // 保持原有的青色
+    lv_obj_set_style_text_letter_space(ui_data.title, 2, 0); // 保持字间距
+    lv_obj_set_width(ui_data.title, 180); // 设置合适的宽度
     lv_obj_set_style_text_align(ui_data.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(ui_data.title, current_ai.title);
     lv_obj_align(ui_data.title, LV_ALIGN_TOP_MID, 0, 5);
-
+    
     // 创建AI头像容器 - 左侧偏下 - 圆角正方形
     ui_data.ai_avatar = lv_obj_create(ui_data.screen);
     lv_obj_set_size(ui_data.ai_avatar, 85, 85);
-    lv_obj_set_style_bg_color(ui_data.ai_avatar, lv_color_hex(0x1A1A1A), 0); // 深色背景
-    lv_obj_set_style_bg_opa(ui_data.ai_avatar, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(ui_data.ai_avatar, 15, 0); // 圆角半径
-    lv_obj_set_style_border_width(ui_data.ai_avatar, 2, 0);
-    lv_obj_set_style_border_color(ui_data.ai_avatar, lv_color_hex(0x3498DB), 0); // 蓝色边框
-    lv_obj_set_style_border_opa(ui_data.ai_avatar, LV_OPA_30, 0);
-    lv_obj_align(ui_data.ai_avatar, LV_ALIGN_LEFT_MID, 10, 5); // 调整位置作为布局基准
+    lv_obj_set_style_bg_color(ui_data.ai_avatar, lv_color_hex(0x1A1A1A), 0);
+    lv_obj_set_style_bg_opa(ui_data.ai_avatar, LV_OPA_0, 0);
+    lv_obj_set_style_radius(ui_data.ai_avatar, 15, 0);
+    lv_obj_set_style_border_width(ui_data.ai_avatar, 0, 0);
+    lv_obj_set_style_border_color(ui_data.ai_avatar, lv_color_hex(0x3498DB), 0);
+    lv_obj_set_style_border_opa(ui_data.ai_avatar, LV_OPA_0, 0);
+    lv_obj_align(ui_data.ai_avatar, LV_ALIGN_LEFT_MID, 10, 5);
 
-    // 使用Lottie动画作为AI头像
     // 创建Lottie动画对象
     ui_data.ai_lottie = lv_lottie_create(ui_data.ai_avatar);
 
-    // 禁用Lottie对象的滚动条和滚动功能
+    // 禁用滚动功能
     lv_obj_clear_flag(ui_data.ai_lottie, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(ui_data.ai_lottie, LV_SCROLLBAR_MODE_OFF);
-
-    // 禁用AI头像容器的滚动条和滚动功能  
     lv_obj_clear_flag(ui_data.ai_avatar, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scrollbar_mode(ui_data.ai_avatar, LV_SCROLLBAR_MODE_OFF);
 
-    // 设置动画文件路径
-    lv_lottie_set_src_file(ui_data.ai_lottie, "/Quark-N_lvgl_9.2/lvgl_ui/lotties/Ai.json");
-
-    // 设置缓冲区
-    static uint8_t lottie_buf[85 * 85 * 4]; // 适配头像大小的缓冲区 
+    // 设置动画文件路径和缓冲区
+    lv_lottie_set_src_file(ui_data.ai_lottie, "/Quark-N_lvgl_9.2/lvgl_ui/lotties/AI_Show.json");
+    
+    static uint8_t lottie_buf[85 * 85 * 4];
     lv_lottie_set_buffer(ui_data.ai_lottie, 85, 85, lottie_buf);
 
-    // 获取动画对象并设置循环
+    // 设置循环
     lv_anim_t *anim = lv_lottie_get_anim(ui_data.ai_lottie);
     if (anim) {
-        lv_anim_set_repeat_count(anim, LV_ANIM_REPEAT_INFINITE); // 无限循环
+        lv_anim_set_repeat_count(anim, LV_ANIM_REPEAT_INFINITE);
     }
 
-    // 设置大小并居中
+    // 设置大小和位置
     lv_obj_set_size(ui_data.ai_lottie, 85, 85);
     lv_obj_center(ui_data.ai_lottie);
     
-    // 创建状态显示 - 与AI头像水平对齐
-    ui_data.status = lv_label_create(ui_data.screen);
-    lv_obj_set_style_text_font(ui_data.status, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(ui_data.status, COLOR_AI_PRIMARY, 0); // 使用AI蓝色
-    lv_label_set_text(ui_data.status, current_ai.status);
-    // 将状态标签与AI头像居中对齐，并在头像下方显示
-    lv_obj_align_to(ui_data.status, ui_data.ai_avatar, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
-    
-    // 创建对话区域背景 - 右侧，与AI头像同高
-    lv_obj_t *dialog_bg = lv_obj_create(ui_data.screen);
-    lv_obj_set_size(dialog_bg, 120, 85); // 与AI头像相同高度
-    lv_obj_set_style_bg_color(dialog_bg, COLOR_SURFACE, 0);
-    lv_obj_set_style_bg_opa(dialog_bg, LV_OPA_40, 0);
-    lv_obj_set_style_border_width(dialog_bg, 1, 0);
-    lv_obj_set_style_border_color(dialog_bg, lv_color_hex(0x3498DB), 0); // 蓝色边框
-    lv_obj_set_style_radius(dialog_bg, 5, 0);
-    // 与AI头像保持垂直对齐
-    lv_obj_align(dialog_bg, LV_ALIGN_RIGHT_MID, -20, 5); // 水平对称布局
 
     // 创建对话容器和滚动区域
-    ui_data.dialog_container = lv_obj_create(dialog_bg);
-    lv_obj_set_size(ui_data.dialog_container, 100, 65);
+    ui_data.dialog_container = lv_obj_create(ui_data.screen); // 改为screen而不是dialog_bg
+    lv_obj_set_size(ui_data.dialog_container, 130, 100);
     lv_obj_set_style_bg_opa(ui_data.dialog_container, LV_OPA_0, 0);
     lv_obj_set_style_border_width(ui_data.dialog_container, 0, 0);
     lv_obj_set_style_pad_all(ui_data.dialog_container, 0, 0);
-    lv_obj_align(ui_data.dialog_container, LV_ALIGN_BOTTOM_MID, 0, -5);
+    // 直接定位到屏幕右侧
+    lv_obj_align(ui_data.dialog_container, LV_ALIGN_RIGHT_MID, -15, 15);
     lv_obj_set_scroll_dir(ui_data.dialog_container, LV_DIR_VER);
     
     // 创建对话文本
     ui_data.dialog_text = lv_label_create(ui_data.dialog_container);
-    lv_obj_set_style_text_font(ui_data.dialog_text, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(ui_data.dialog_text, COLOR_TEXT_SECONDARY, 0);
-    lv_obj_set_width(ui_data.dialog_text, 95);
+    lv_obj_set_style_text_font(ui_data.dialog_text, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(ui_data.dialog_text, COLOR_AI_TEXT, 0); // 使用新定义的AI文本颜色
+    lv_obj_set_width(ui_data.dialog_text, 130);
     lv_label_set_text(ui_data.dialog_text, current_ai.dialog);
     lv_obj_align(ui_data.dialog_text, LV_ALIGN_TOP_LEFT, 0, 0);
+    
+    // 开启垂直滚动
+    start_text_autoscroll();
     
     // 创建按钮处理定时器
     ui_data.button_timer = lv_timer_create(button_event_timer_cb, 50, NULL);
@@ -188,7 +175,77 @@ static void button_event_timer_cb(lv_timer_t *timer) {
     }
 }
 
-// 从AI界面返回菜单界面
+// 文本自动垂直滚动定时器回调 - 优化版本
+static void scroll_text_timer_cb(lv_timer_t *timer) {
+    if (!ui_data.is_active || !ui_data.dialog_container || !ui_data.dialog_text) return;
+    
+    static int scroll_pos = 0;
+    static int direction = 1; // 1向下滚动，-1向上滚动
+    static uint32_t last_time = 0;
+    
+    // 获取当前时间
+    uint32_t current_time = lv_tick_get();
+    
+    // 控制滚动速度，LVGL 9.2中建议使用lv_tick_get()控制时间
+    if(current_time - last_time < 20) return; // 控制刷新率
+    last_time = current_time;
+    
+    // 获取文本和容器高度
+    lv_coord_t text_height = lv_obj_get_height(ui_data.dialog_text);
+    lv_coord_t container_height = lv_obj_get_height(ui_data.dialog_container);
+    
+    // 只有文本高度大于容器时才需要滚动
+    if (text_height <= container_height) return;
+    
+    // 设置滚动位置
+    scroll_pos += (direction * 1); // 每次滚动1个像素
+    
+    // 检查是否到达边界
+    if (scroll_pos <= 0) {
+        scroll_pos = 0;
+        direction = 1; // 改为向下滚动
+        lv_timer_pause(timer);
+        lv_timer_set_period(timer, 1000); // 在顶部停留1秒
+        lv_timer_reset(timer);
+        lv_timer_resume(timer);
+    }
+    else if (scroll_pos >= (text_height - container_height)) {
+        scroll_pos = text_height - container_height;
+        direction = -1; // 改为向上滚动
+        lv_timer_pause(timer);
+        lv_timer_set_period(timer, 1000); // 在底部停留1秒
+        lv_timer_reset(timer);
+        lv_timer_resume(timer);
+    }
+    else {
+        // 正常滚动时使用标准间隔 - LVGL 9.2能够更好地支持精确周期
+        lv_timer_set_period(timer, 50);
+    }
+    
+    // 应用垂直滚动 - LVGL 9.2 API
+    lv_obj_set_y(ui_data.dialog_text, -scroll_pos);
+}
+
+// 自动滚动文本的函数 - 改为垂直滚动
+static void start_text_autoscroll(void) {
+    // 停止现有的滚动定时器
+    if (ui_data.scroll_timer) {
+        lv_timer_del(ui_data.scroll_timer);
+        ui_data.scroll_timer = NULL;
+    }
+    
+    // 获取对话文本的高度
+    lv_coord_t text_height = lv_obj_get_height(ui_data.dialog_text);
+    lv_coord_t container_height = lv_obj_get_height(ui_data.dialog_container);
+    
+    // 只有当文本高度超过容器高度时才需要滚动
+    if (text_height > container_height) {
+        // 创建定时器来执行垂直滚动
+        ui_data.scroll_timer = lv_timer_create(scroll_text_timer_cb, 50, NULL);
+    }
+}
+
+// 从AI界面返回菜单界面 - 修复返回问题
 static void return_to_menu(void) {
     // 停止按钮定时器
     if (ui_data.button_timer) {
@@ -196,17 +253,27 @@ static void return_to_menu(void) {
         ui_data.button_timer = NULL;
     }
     
+    // 停止滚动定时器
+    if (ui_data.scroll_timer) {
+        lv_timer_del(ui_data.scroll_timer);
+        ui_data.scroll_timer = NULL;
+    }
+    
     // 设置为非活动状态
     ui_data.is_active = false;
     
-    // 清除实例引用
+    // 在创建新屏幕前保存当前屏幕引用
+    lv_obj_t *old_screen = ui_data.screen;
+    
+    // 清空对象引用 - 保持简单，仅清空screen
     ui_data.screen = NULL;
     
     // 创建菜单屏幕
     menu_ui_create_screen();
     
-    // 使用动画切换屏幕
-    lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_FADE_IN, 500, 0, true);
+    // 使用与其他界面一致的动画切换屏幕
+    // 注意：让auto_del参数为true，由LVGL自动处理旧屏幕删除
+    lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, true);
     
     // 激活菜单
     menu_ui_set_active();
@@ -220,23 +287,45 @@ void AI_ui_set_active(void) {
     if (!ui_data.button_timer) {
         ui_data.button_timer = lv_timer_create(button_event_timer_cb, 50, NULL);
     }
+    
+    // 恢复文本滚动
+    if (ui_data.dialog_text && ui_data.dialog_container && !ui_data.scroll_timer) {
+        start_text_autoscroll();
+    }
 }
 
-// 释放资源
+// 释放资源 - 增强版
 void AI_ui_deinit(void) {
+    // 停止所有动画
+    lv_anim_del_all();
+    
+    // 停止按钮定时器
     if (ui_data.button_timer) {
         lv_timer_del(ui_data.button_timer);
         ui_data.button_timer = NULL;
     }
     
+    // 停止滚动定时器
+    if (ui_data.scroll_timer) {
+        lv_timer_del(ui_data.scroll_timer);
+        ui_data.scroll_timer = NULL;
+    }
+    
     ui_data.is_active = false;
     
-    if (ui_data.screen) {
+    // 删除屏幕及其所有子对象
+    if (ui_data.screen && lv_obj_is_valid(ui_data.screen)) {
         lv_obj_del(ui_data.screen);
-        ui_data.screen = NULL;
-        ui_data.ai_lottie = NULL; // 确保指针置空
-        ui_data.ai_avatar = NULL;
     }
+    
+    // 清空所有对象引用，防止野指针
+    ui_data.screen = NULL;
+    ui_data.ai_lottie = NULL;
+    ui_data.ai_avatar = NULL;
+    ui_data.title = NULL;
+    ui_data.status = NULL;
+    ui_data.dialog_container = NULL;
+    ui_data.dialog_text = NULL;
 }
 
 // 交互功能函数

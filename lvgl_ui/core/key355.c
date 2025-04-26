@@ -27,6 +27,9 @@ static bool in_submenu = false;
 static pthread_t button_thread;
 static int gpio_value_fd = -1;
 
+// 添加全局变量用于存储当前按钮状态
+static volatile bool is_button_pressed = false;
+
 static bool write_to_file(const char *filename, const char *content) {
     int fd = open(filename, O_WRONLY);
     if (fd < 0) {
@@ -106,6 +109,9 @@ static void* button_thread_func(void *arg) {
         }
 
         current_state = !current_state;
+        
+        // 更新当前按钮状态
+        is_button_pressed = (current_state == 1);
 
         if (current_state != prev_state) {
             uint32_t current_time = get_time_ms();
@@ -212,4 +218,12 @@ void key355_deinit(void) {
 
     pthread_mutex_destroy(&event_mutex);
     pthread_mutex_destroy(&thread_mutex);
+}
+
+/**
+ * 获取按钮当前物理状态
+ * 无需互斥锁保护，读取单个布尔值是原子操作
+ */
+bool key355_is_pressed(void) {
+    return is_button_pressed;
 }

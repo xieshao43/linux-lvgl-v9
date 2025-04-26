@@ -9,6 +9,9 @@
 #define COLOR_SURFACE       lv_color_hex(0x1E1E1E)
 #define COLOR_TEXT_PRIMARY  lv_color_hex(0xFFFFFF)
 #define COLOR_TEXT_SECONDARY lv_color_hex(0xDDDDDD)
+// 添加新颜色定义 - 更优雅的配色
+#define COLOR_MUSIC_TITLE   lv_color_hex(0xFFC0CB) // 柔和的粉红色标题
+#define COLOR_MUSIC_TEXT    lv_color_hex(0xE6E6FA) // 淡紫色/薰衣草色文本
 
 // 动画时间常量
 #define ANIM_TIME_DEFAULT   300
@@ -25,6 +28,7 @@ typedef struct {
     lv_obj_t *lyrics_container; // 歌词容器
     lv_obj_t *lyrics_text;      // 歌词文本
     lv_timer_t *button_timer;   // 按钮检测定时器
+    lv_timer_t *scroll_timer;   // 添加滚动定时器
     bool is_active;             // 是否活动状态
 } music_ui_data_t;;
 
@@ -48,6 +52,8 @@ static music_track_t current_track = {
 // 函数前向声明
 static void return_to_menu(void);
 static void button_event_timer_cb(lv_timer_t *timer);
+static void start_lyrics_autoscroll(void);
+static void scroll_lyrics_timer_cb(lv_timer_t *timer);
 
 // 简化版的音乐界面创建函数
 void music_ui_create_screen(void) {
@@ -80,7 +86,7 @@ void music_ui_create_screen(void) {
     // 创建标题 - 顶部居中
     ui_data.song_title = lv_label_create(ui_data.screen);
     lv_obj_set_style_text_font(ui_data.song_title, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(ui_data.song_title, COLOR_TEXT_PRIMARY, 0);
+    lv_obj_set_style_text_color(ui_data.song_title, COLOR_MUSIC_TITLE, 0);
     lv_obj_set_width(ui_data.song_title, 220);
     lv_obj_set_style_text_align(ui_data.song_title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(ui_data.song_title, current_track.title);
@@ -90,11 +96,11 @@ void music_ui_create_screen(void) {
     ui_data.album_cover = lv_obj_create(ui_data.screen);
     lv_obj_set_size(ui_data.album_cover, 85, 85);
     lv_obj_set_style_bg_color(ui_data.album_cover, lv_color_hex(0x1A1A1A), 0); // 深色背景
-    lv_obj_set_style_bg_opa(ui_data.album_cover, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_opa(ui_data.album_cover, LV_OPA_0, 0);
     lv_obj_set_style_radius(ui_data.album_cover, 15, 0); // 圆角半径
-    lv_obj_set_style_border_width(ui_data.album_cover, 2, 0);
+    lv_obj_set_style_border_width(ui_data.album_cover, 0, 0);
     lv_obj_set_style_border_color(ui_data.album_cover, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_border_opa(ui_data.album_cover, LV_OPA_30, 0);
+    lv_obj_set_style_border_opa(ui_data.album_cover, LV_OPA_0, 0);
     lv_obj_align(ui_data.album_cover, LV_ALIGN_LEFT_MID, 10, 5); // 调整位置作为布局基准
 
     // 使用Lottie动画作为封面
@@ -110,7 +116,7 @@ void music_ui_create_screen(void) {
     lv_obj_set_scrollbar_mode(ui_data.album_cover, LV_SCROLLBAR_MODE_OFF);
 
     // 设置动画文件路径
-    lv_lottie_set_src_file(ui_data.album_lottie, "/Quark-N_lvgl_9.2/lvgl_ui/lotties/Music_a.json");
+    lv_lottie_set_src_file(ui_data.album_lottie, "/Quark-N_lvgl_9.2/lvgl_ui/lotties/Music_init.json");
 
     // 设置缓冲区
     static uint8_t lottie_buf[85 * 85 * 4]; // 适配封面大小的缓冲区 
@@ -131,39 +137,31 @@ void music_ui_create_screen(void) {
     lv_obj_set_style_text_font(time_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(time_label, COLOR_TEXT_SECONDARY, 0);
     lv_label_set_text_fmt(time_label, "0:00 | %d:%02d", current_track.duration / 60, current_track.duration % 60);
-    // 将时长标签与专辑封面左侧对齐，并在专辑封面下方显示
+    // 将时长标签与专辑封面居中对齐，并在专辑封面下方显示
     lv_obj_align_to(time_label, ui_data.album_cover, LV_ALIGN_OUT_BOTTOM_MID, 0, 5); // 与专辑封面居中对齐
-    
-    // 创建歌词区域背景 - 右侧，与专辑封面同高
-    lv_obj_t *lyrics_bg = lv_obj_create(ui_data.screen);
-    lv_obj_set_size(lyrics_bg, 120, 85); // 与专辑封面相同高度
-    lv_obj_set_style_bg_color(lyrics_bg, COLOR_SURFACE, 0);
-    lv_obj_set_style_bg_opa(lyrics_bg, LV_OPA_40, 0);
-    lv_obj_set_style_border_width(lyrics_bg, 1, 0);
-    lv_obj_set_style_border_color(lyrics_bg, lv_color_hex(0x444444), 0);
-    lv_obj_set_style_radius(lyrics_bg, 5, 0);
-    // 与专辑封面保持垂直对齐
-    lv_obj_align(lyrics_bg, LV_ALIGN_RIGHT_MID, -20, 5); // 水平对称布局
 
     
     // 创建歌词容器和滚动区域 - 适应新的歌词区域
-    ui_data.lyrics_container = lv_obj_create(lyrics_bg);
-    lv_obj_set_size(ui_data.lyrics_container, 100, 65);
+    ui_data.lyrics_container = lv_obj_create(ui_data.screen);
+    lv_obj_set_size(ui_data.lyrics_container, 130, 85); 
     lv_obj_set_style_bg_opa(ui_data.lyrics_container, LV_OPA_0, 0);
     lv_obj_set_style_border_width(ui_data.lyrics_container, 0, 0);
     lv_obj_set_style_pad_all(ui_data.lyrics_container, 0, 0);
-    lv_obj_align(ui_data.lyrics_container, LV_ALIGN_BOTTOM_MID, 0, -5);
+    lv_obj_align(ui_data.lyrics_container, LV_ALIGN_RIGHT_MID, -15, 5);
     lv_obj_set_scroll_dir(ui_data.lyrics_container, LV_DIR_VER);
 
 
     
     // 创建歌词文本
     ui_data.lyrics_text = lv_label_create(ui_data.lyrics_container);
-    lv_obj_set_style_text_font(ui_data.lyrics_text, &lv_font_montserrat_12, 0);
-    lv_obj_set_style_text_color(ui_data.lyrics_text, COLOR_TEXT_SECONDARY, 0);
-    lv_obj_set_width(ui_data.lyrics_text, 95);
+    lv_obj_set_style_text_font(ui_data.lyrics_text, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(ui_data.lyrics_text, COLOR_MUSIC_TEXT, 0);
+    lv_obj_set_width(ui_data.lyrics_text, 130);
     lv_label_set_text(ui_data.lyrics_text, current_track.lyrics);
     lv_obj_align(ui_data.lyrics_text, LV_ALIGN_TOP_LEFT, 0, 0);
+    
+    // 启动歌词自动滚动
+    start_lyrics_autoscroll();
     
     // 创建按钮处理定时器
     ui_data.button_timer = lv_timer_create(button_event_timer_cb, 50, NULL);
@@ -191,12 +189,80 @@ static void button_event_timer_cb(lv_timer_t *timer) {
     }
 }
 
+// 歌词文本自动垂直滚动定时器回调
+static void scroll_lyrics_timer_cb(lv_timer_t *timer) {
+    if (!ui_data.is_active || !ui_data.lyrics_container || !ui_data.lyrics_text) return;
+    
+    static int scroll_pos = 0;
+    static int direction = 1; // 1向下滚动，-1向上滚动
+    
+    // 获取文本和容器高度
+    lv_coord_t text_height = lv_obj_get_height(ui_data.lyrics_text);
+    lv_coord_t container_height = lv_obj_get_height(ui_data.lyrics_container);
+    
+    // 只有文本高度大于容器时才需要滚动
+    if (text_height <= container_height) return;
+    
+    // 设置滚动位置
+    scroll_pos += (direction * 1); // 每次滚动1个像素
+    
+    // 检查是否到达边界
+    if (scroll_pos <= 0) {
+        scroll_pos = 0;
+        direction = 1; // 改为向下滚动
+        lv_timer_pause(timer);
+        lv_timer_set_period(timer, 1000); // 在顶部停留1秒
+        lv_timer_reset(timer);
+        lv_timer_resume(timer);
+    }
+    else if (scroll_pos >= (text_height - container_height)) {
+        scroll_pos = text_height - container_height;
+        direction = -1; // 改为向上滚动
+        lv_timer_pause(timer);
+        lv_timer_set_period(timer, 1000); // 在底部停留1秒
+        lv_timer_reset(timer);
+        lv_timer_resume(timer);
+    }
+    else {
+        // 正常滚动时使用标准间隔
+        lv_timer_set_period(timer, 50);
+    }
+    
+    // 应用垂直滚动
+    lv_obj_set_y(ui_data.lyrics_text, -scroll_pos);
+}
+
+// 自动滚动歌词文本的函数
+static void start_lyrics_autoscroll(void) {
+    // 停止现有的滚动定时器
+    if (ui_data.scroll_timer) {
+        lv_timer_del(ui_data.scroll_timer);
+        ui_data.scroll_timer = NULL;
+    }
+    
+    // 获取歌词文本的高度
+    lv_coord_t text_height = lv_obj_get_height(ui_data.lyrics_text);
+    lv_coord_t container_height = lv_obj_get_height(ui_data.lyrics_container);
+    
+    // 只有当文本高度超过容器高度时才需要滚动
+    if (text_height > container_height) {
+        // 创建定时器来执行垂直滚动
+        ui_data.scroll_timer = lv_timer_create(scroll_lyrics_timer_cb, 50, NULL);
+    }
+}
+
 // 从音乐界面返回菜单界面
 static void return_to_menu(void) {
     // 停止按钮定时器
     if (ui_data.button_timer) {
         lv_timer_del(ui_data.button_timer);
         ui_data.button_timer = NULL;
+    }
+    
+    // 停止滚动定时器
+    if (ui_data.scroll_timer) {
+        lv_timer_del(ui_data.scroll_timer);
+        ui_data.scroll_timer = NULL;
     }
     
     // 设置为非活动状态
@@ -223,6 +289,11 @@ void music_ui_set_active(void) {
     if (!ui_data.button_timer) {
         ui_data.button_timer = lv_timer_create(button_event_timer_cb, 50, NULL);
     }
+    
+    // 恢复歌词滚动
+    if (ui_data.lyrics_text && ui_data.lyrics_container && !ui_data.scroll_timer) {
+        start_lyrics_autoscroll();
+    }
 }
 
 // 释放资源
@@ -230,6 +301,12 @@ void music_ui_deinit(void) {
     if (ui_data.button_timer) {
         lv_timer_del(ui_data.button_timer);
         ui_data.button_timer = NULL;
+    }
+    
+    // 停止滚动定时器
+    if (ui_data.scroll_timer) {
+        lv_timer_del(ui_data.scroll_timer);
+        ui_data.scroll_timer = NULL;
     }
     
     ui_data.is_active = false;
