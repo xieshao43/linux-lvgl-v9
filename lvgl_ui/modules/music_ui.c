@@ -296,29 +296,7 @@ void music_ui_set_active(void) {
     }
 }
 
-// 释放资源
-void music_ui_deinit(void) {
-    if (ui_data.button_timer) {
-        lv_timer_del(ui_data.button_timer);
-        ui_data.button_timer = NULL;
-    }
-    
-    // 停止滚动定时器
-    if (ui_data.scroll_timer) {
-        lv_timer_del(ui_data.scroll_timer);
-        ui_data.scroll_timer = NULL;
-    }
-    
-    ui_data.is_active = false;
-    
-    // 不需要单独删除Lottie对象，因为删除screen时会自动删除其所有子对象
-    if (ui_data.screen) {
-        lv_obj_del(ui_data.screen);
-        ui_data.screen = NULL;
-        ui_data.album_lottie = NULL; // 确保指针置空
-        ui_data.album_cover = NULL;
-    }
-}
+
 
 // 简单占位函数 - 为了保持API兼容性
 void music_ui_toggle_play_pause(void) {
