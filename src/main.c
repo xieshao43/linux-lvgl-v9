@@ -33,6 +33,8 @@
 #include "src/lib/simulator_util.h"
 #include "src/lib/simulator_settings.h"
 
+// 删除对不存在的UDP头文件的引用
+
 /* Internal functions */
 static void configure_simulator(int argc, char **argv);
 static void print_lvgl_version(void);
@@ -45,6 +47,7 @@ static char *selected_backend;
 /* Global simulator settings, defined in lv_linux_backend.c */
 extern simulator_settings_t settings;
 
+// 删除UDP定时器和回调函数相关代码
 
 /**
  * @brief Print LVGL version
@@ -151,6 +154,8 @@ int main(int argc, char **argv)
     }
 #endif
 
+    // 删除对不存在的UDP初始化和定时器的调用
+
     /*Create a Demo*/
     //lv_demo_widgets();
     //lv_demo_widgets_start_slideshow();
@@ -158,6 +163,8 @@ int main(int argc, char **argv)
 
     /* Enter the run loop of the selected backend */
     driver_backends_run_loop();
+    
+    // 删除对不存在的UDP清理函数的调用
 
     return 0;
 }

@@ -1,5 +1,9 @@
 #include "AI_ui.h"
 #include "menu_ui.h"
+#include "../core/key355.h"
+#include "../core/ipc_udp.h" // 修改为新的IPC UDP头文件
+#include "../core/cJSON.h" // 添加cJSON头文件
+#include "../core/ai_comm_manager.h" // 修改引入头文件 - 添加AI通信管理器
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -28,8 +32,14 @@ typedef struct {
     lv_obj_t *dialog_text;       // 对话文本
     lv_timer_t *button_timer;    // 按钮检测定时器
     lv_timer_t *scroll_timer;    // 滚动定时器
+    lv_timer_t *udp_timer;       // UDP消息处理定时器 (新增)
     bool is_active;              // 是否活动状态
+    bool message_received;       // 是否收到新消息 (新增)
 } ai_ui_data_t;
+
+// 定义UDP端点和端口号 (修改为标准端口)
+#define UDP_PORT_RECV 5679  /* control_center向GUI的这个端口下发UI信息 */
+#define UDP_PORT_SEND 5678  /* GUI向control_center的这个端口上传UI信息 */
 
 // AI信息
 typedef struct {
@@ -40,6 +50,20 @@ typedef struct {
 
 // 全局UI数据
 static ai_ui_data_t ui_data = {0};
+
+// 消息缓冲区 (新增)
+#define MAX_DIALOG_LENGTH 1024
+static char dialog_buffer[MAX_DIALOG_LENGTH] = {0};
+
+// AI状态定义 (新增)
+typedef enum {
+    AI_STATE_IDLE = 0,
+    AI_STATE_LISTENING = 1,
+    AI_STATE_THINKING = 5,
+    AI_STATE_SPEAKING = 6
+} ai_state_t;
+
+static ai_state_t current_state = AI_STATE_IDLE;
 
 // AI示例数据
 static ai_info_t current_ai = {
@@ -52,6 +76,93 @@ static void return_to_menu(void);
 static void button_event_timer_cb(lv_timer_t *timer);
 static void start_text_autoscroll(void);
 static void scroll_text_timer_cb(lv_timer_t *timer);
+static void process_udp_messages(lv_timer_t *timer); // 新增UDP消息处理函数
+static void update_dialog_text(const char *new_text); // 新增对话文本更新函数
+static void init_ai_communication(void); // 添加init_ai_communication的前向声明
+
+// 添加一个简单的消息缓冲区
+static struct {
+    bool has_new_message;
+    char text[MAX_DIALOG_LENGTH];
+    int state;
+} message_buffer = {0};
+
+// AI消息回调函数
+static void ai_message_callback(ai_message_type_t type, const void* data, void* user_data) {
+    if (!ui_data.is_active) return;
+    
+    switch (type) {
+        case AI_MSG_TEXT: {
+            const char* text = (const char*)data;
+            // 安全复制消息文本
+            strncpy(message_buffer.text, text, MAX_DIALOG_LENGTH - 1);
+            message_buffer.text[MAX_DIALOG_LENGTH - 1] = '\0';
+            message_buffer.has_new_message = true;
+            break;
+        }
+        case AI_MSG_STATE: {
+            const int* state = (const int*)data;
+            message_buffer.state = *state;
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+// 处理收到的UDP消息 - 从缓冲区安全地更新UI
+static void process_udp_messages(lv_timer_t *timer) {
+    // 只在活动状态且有新消息时处理
+    if (!ui_data.is_active || !message_buffer.has_new_message) return;
+    
+    // 安全检查UI元素，这里使用双重检查防止段错误
+    if (!ui_data.dialog_text || !ui_data.status || 
+        !lv_obj_is_valid(ui_data.dialog_text) || !lv_obj_is_valid(ui_data.status)) {
+        message_buffer.has_new_message = false;
+        return;
+    }
+    
+    // 更新对话文本
+    lv_label_set_text(ui_data.dialog_text, message_buffer.text);
+    
+    // 更新状态文本
+    switch(message_buffer.state) {
+        case AI_STATE_LISTENING:
+            lv_label_set_text(ui_data.status, "Listening...");
+            break;
+        case AI_STATE_THINKING:
+            lv_label_set_text(ui_data.status, "Thinking...");
+            break;
+        case AI_STATE_SPEAKING:
+            lv_label_set_text(ui_data.status, "Speaking...");
+            break;
+        default:
+            // 只在状态有值时更新
+            if (message_buffer.state != 0) {
+                lv_label_set_text(ui_data.status, "Idle");
+            }
+            break;
+    }
+    
+    // 重新启动滚动效果
+    start_text_autoscroll();
+    
+    // 清除新消息标志
+    message_buffer.has_new_message = false;
+    
+    printf("[AI] Updated UI with message: %.30s...\n", message_buffer.text);
+}
+
+// 更新对话文本 (新增)
+static void update_dialog_text(const char *new_text) {
+    if (!ui_data.dialog_text || !new_text) return;
+    
+    // 更新文本
+    lv_label_set_text(ui_data.dialog_text, new_text);
+    
+    // 重新启动滚动效果
+    start_text_autoscroll();
+}
 
 // AI界面创建函数
 void AI_ui_create_screen(void) {
@@ -90,6 +201,13 @@ void AI_ui_create_screen(void) {
     lv_obj_set_style_text_align(ui_data.title, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(ui_data.title, current_ai.title);
     lv_obj_align(ui_data.title, LV_ALIGN_TOP_MID, 0, 5);
+    
+    // 创建状态文本 (添加状态显示)
+    ui_data.status = lv_label_create(ui_data.screen);
+    lv_obj_set_style_text_font(ui_data.status, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(ui_data.status, COLOR_AI_PRIMARY, 0);
+    lv_label_set_text(ui_data.status, "Idle");
+    lv_obj_align(ui_data.status, LV_ALIGN_TOP_MID, 0, 30); // 放在标题下方
     
     // 创建AI头像容器 - 左侧偏下 - 圆角正方形
     ui_data.ai_avatar = lv_obj_create(ui_data.screen);
@@ -154,12 +272,16 @@ void AI_ui_create_screen(void) {
     
     // 设置为活动状态
     ui_data.is_active = true;
+    ui_data.message_received = false;
+    
+    // 初始化UDP通信
+    init_ai_communication();
     
     // 使用过渡动画加载屏幕
     lv_scr_load_anim(ui_data.screen, LV_SCR_LOAD_ANIM_FADE_IN, ANIM_TIME_DEFAULT, 0, false);
 }
 
-// 按钮事件处理回调
+// 按钮事件处理回调 (修改)
 static void button_event_timer_cb(lv_timer_t *timer) {
     if (!ui_data.is_active) return;
     
@@ -172,6 +294,10 @@ static void button_event_timer_cb(lv_timer_t *timer) {
     // 处理双击返回主菜单
     if (event == BUTTON_EVENT_DOUBLE_CLICK) {
         return_to_menu();
+    } else if (event == BUTTON_EVENT_CLICK) {
+        // 单击发送消息请求新的AI内容
+        const char *request_message = "{\"type\":\"ai_request\",\"action\":\"get_content\"}";
+        ai_comm_manager_send_message(request_message);
     }
 }
 
@@ -245,38 +371,75 @@ static void start_text_autoscroll(void) {
     }
 }
 
-// 从AI界面返回菜单界面 - 修复返回问题
+// 从AI界面返回菜单界面 - 修复安全退出
 static void return_to_menu(void) {
-    // 停止按钮定时器
+    printf("[AI] Returning to menu\n");
+    
+    // 设置为非活动状态 - 防止消息处理
+    ui_data.is_active = false;
+    
+    // 停止所有定时器
     if (ui_data.button_timer) {
         lv_timer_del(ui_data.button_timer);
         ui_data.button_timer = NULL;
     }
     
-    // 停止滚动定时器
     if (ui_data.scroll_timer) {
         lv_timer_del(ui_data.scroll_timer);
         ui_data.scroll_timer = NULL;
     }
     
-    // 设置为非活动状态
-    ui_data.is_active = false;
+    if (ui_data.udp_timer) {
+        lv_timer_del(ui_data.udp_timer);
+        ui_data.udp_timer = NULL;
+    }
     
-    // 在创建新屏幕前保存当前屏幕引用
+    // 取消注册AI消息回调 - 不再接收消息
+    ai_comm_manager_unregister_callback(ai_message_callback);
+    
+    // 保存当前屏幕引用
     lv_obj_t *old_screen = ui_data.screen;
     
-    // 清空对象引用 - 保持简单，仅清空screen
+    // 清空所有对象引用，防止回调访问
     ui_data.screen = NULL;
+    ui_data.dialog_text = NULL;
+    ui_data.dialog_container = NULL;
+    ui_data.ai_avatar = NULL;
+    ui_data.ai_lottie = NULL;
+    ui_data.title = NULL;
+    ui_data.status = NULL;
     
     // 创建菜单屏幕
     menu_ui_create_screen();
     
     // 使用与其他界面一致的动画切换屏幕
-    // 注意：让auto_del参数为true，由LVGL自动处理旧屏幕删除
-    lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_MOVE_RIGHT, 500, 0, true);
+    lv_scr_load_anim(lv_scr_act(), LV_SCR_LOAD_ANIM_FADE_OUT, 300, 0, true);
     
     // 激活菜单
     menu_ui_set_active();
+    
+    printf("[AI] Successfully returned to menu\n");
+}
+
+// 初始化AI UI的UDP通信
+static void init_ai_communication(void) {
+    // 重置消息缓冲区
+    memset(&message_buffer, 0, sizeof(message_buffer));
+    
+    // 确保AI通信管理器已初始化（这会在全局初始化时处理）
+    if (!ai_comm_manager_is_connected()) {
+        ai_comm_manager_init();
+    }
+    
+    // 注册消息回调
+    ai_comm_manager_register_callback(ai_message_callback, NULL);
+    
+    // 创建UDP处理定时器 - 使用更低频率降低CPU负载
+    ui_data.udp_timer = lv_timer_create(process_udp_messages, 200, NULL);
+    
+    // 发送初始化状态消息
+    const char *init_message = "{\"type\":\"ai_status\",\"status\":\"ready\"}";
+    ai_comm_manager_send_message(init_message);
 }
 
 // 设置AI助手为活动状态
@@ -292,43 +455,19 @@ void AI_ui_set_active(void) {
     if (ui_data.dialog_text && ui_data.dialog_container && !ui_data.scroll_timer) {
         start_text_autoscroll();
     }
+    
+    // 恢复UDP通信定时器
+    if (!ui_data.udp_timer) {
+        ui_data.udp_timer = lv_timer_create(process_udp_messages, 100, NULL);
+    }
 }
 
-// 释放资源 - 增强版
-void AI_ui_deinit(void) {
-    // 停止所有动画
-    lv_anim_del_all();
-    
-    // 停止按钮定时器
-    if (ui_data.button_timer) {
-        lv_timer_del(ui_data.button_timer);
-        ui_data.button_timer = NULL;
-    }
-    
-    // 停止滚动定时器
-    if (ui_data.scroll_timer) {
-        lv_timer_del(ui_data.scroll_timer);
-        ui_data.scroll_timer = NULL;
-    }
-    
-    ui_data.is_active = false;
-    
-    // 删除屏幕及其所有子对象
-    if (ui_data.screen && lv_obj_is_valid(ui_data.screen)) {
-        lv_obj_del(ui_data.screen);
-    }
-    
-    // 清空所有对象引用，防止野指针
-    ui_data.screen = NULL;
-    ui_data.ai_lottie = NULL;
-    ui_data.ai_avatar = NULL;
-    ui_data.title = NULL;
-    ui_data.status = NULL;
-    ui_data.dialog_container = NULL;
-    ui_data.dialog_text = NULL;
-}
-
-// 交互功能函数
+// 交互功能函数 - 添加发送UDP请求的功能 (修改)
 void AI_ui_toggle_interaction(void) {
-    // 这个版本不实现实际交互功能
+    if (!ui_data.is_active) return;
+    
+    // 发送交互请求消息
+    const char *interact_message = "{\"type\":\"ai_interaction\",\"action\":\"toggle\"}";
+    ai_comm_manager_send_message(interact_message);
 }
+

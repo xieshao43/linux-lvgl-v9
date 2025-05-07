@@ -24,9 +24,6 @@ void music_ui_set_active(void);
  */
 void music_ui_toggle_play_pause(void);
 
-/**
- * 释放音乐播放器资源
- */
-void music_ui_deinit(void);
+
 
 #endif // MUSIC_UI_H

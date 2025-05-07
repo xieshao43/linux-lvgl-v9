@@ -20,6 +20,13 @@ set(CMAKE_CXX_STANDARD 17) #C17
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR}/bin)
 
+# 检查目标系统是否支持套接字API
+include(CheckSymbolExists)
+check_symbol_exists(socket "sys/types.h;sys/socket.h" HAVE_SOCKET)
+if(NOT HAVE_SOCKET)
+    message(FATAL_ERROR "System does not support socket API")
+endif()
+
 if (LV_USE_EVDEV)
     message("Including EVDEV support")
     find_package(PkgConfig REQUIRED)
@@ -178,8 +185,10 @@ add_executable(lvglsim src/main.c ${LV_LINUX_SRC} ${LV_LINUX_BACKEND_SRC} ${LVGL
 target_include_directories(lvglsim PRIVATE 
     ${PROJECT_SOURCE_DIR}/lvgl_ui
     ${PROJECT_SOURCE_DIR}/lvgl_ui/lottie # 添加lottie目录到包含路径
+    ${PROJECT_SOURCE_DIR}/lvgl_ui/core   # 添加core目录到包含路径
 )
 
+# 添加网络相关库的链接
 target_link_libraries(lvglsim lvgl_linux lvgl lvgl::examples lvgl::demos lvgl::thorvg m pthread ${PKG_CONFIG_LIB})
 
 # Install the lvgl_linux library and its headers

@@ -4,6 +4,7 @@
 #include "modules/menu_ui.h"   // 添加菜单UI头文件
 #include "modules/wifi_manager.h" // 添加WiFi管理器头文件
 #include "modules/wifi_notification.h" // 添加WiFi通知头文件
+#include "core/ai_comm_manager.h"  // 添加AI通信管理器头文件
 
 // 添加全局更新定时器
 static lv_timer_t *global_update_timer = NULL;
@@ -58,6 +59,9 @@ void storage_monitor_init(const char *path) {
     // 初始化按钮处理模块
     key355_init();
 
+    // 初始化AI通信管理器 - 确保在所有界面创建前就准备好通信
+    ai_comm_manager_init();
+    
     // 创建初始菜单屏幕 - 直接使用新的屏幕创建函数
     menu_ui_create_screen();
     
@@ -88,6 +92,9 @@ void storage_monitor_close(void) {
     
     // 释放按钮处理模块
     key355_deinit();
+    
+    // 释放AI通信管理器资源
+    ai_comm_manager_deinit();
     
     // 调用正确声明的函数释放数据管理器资源
     data_manager_deinit();

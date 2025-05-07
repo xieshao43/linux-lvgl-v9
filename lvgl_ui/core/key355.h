@@ -35,12 +35,6 @@ button_event_t key355_get_event(void);
 void key355_clear_event(void);
 
 /**
- * 获取按钮当前物理状态（是否被按下）
- * @return 按钮被按下返回true，否则返回false
- */
-bool key355_is_pressed(void);
-
-/**
  * 销毁按钮处理模块，释放所有资源
  */
 void key355_deinit(void);
