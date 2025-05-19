@@ -24,9 +24,6 @@ void AI_ui_set_active(void);
  */
 void AI_ui_toggle_interaction(void);
 
-/**
- * 释放AI助手资源
- */
-void AI_ui_deinit(void);
+
 
 #endif // AI_UI_H
